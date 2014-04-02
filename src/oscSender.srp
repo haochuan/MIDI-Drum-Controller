@@ -1,0 +1,18 @@
+require "debug"
+
+def startup()
+    addr = osc_create_address("", "60385", false)
+
+def send_afloat(path, val)
+    # display val
+    osc_send_start()
+    for v in val:
+        if not v
+            v = 0
+        elif v == true
+            v = 1
+        osc_add_float(v)
+    osc_send(addr, path)
+
+startup()
+

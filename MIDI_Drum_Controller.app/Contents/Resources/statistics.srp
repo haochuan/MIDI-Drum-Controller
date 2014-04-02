@@ -1,0 +1,81 @@
+// Statistics is a class for computing simple statistics on some data
+// 
+// after initializing, call point(x) for each sample value x
+// then call get_mean() to get the mean, 
+// and call get_stddev() to get the sample standard deviation
+// or call print_stats() to write some stats to stdout
+//
+// to retain data, set retain to t
+// then, in addition to computing statistics, save_data(filename)
+// will write the data collected so far
+//
+// This class is ripe for some more statistical methods
+//
+class Statistics
+    var count // how many points have been entered
+    var sum // sum of data (internal)
+    var sum_sqr // sum of squares (internal)
+    var retain // set to t to retain the set of points
+    var data // the data points (if retain is true)
+    var max_x // maximum
+    var min_x // minimum
+
+    def init()
+        count = 0
+        sum = 0
+        sum_sqr = 0
+        data = []
+        max_x = nil
+        min_x = nil
+
+    def point(x)
+        count = count + 1
+        sum = sum + x
+        sum_sqr = sum_sqr + (x * x)
+        if retain
+            data.append(x)
+        if max_x
+            max_x = max(x, max_x)
+        else
+            max_x = x
+        if min_x
+            min_x = min(x, min_x)
+        else
+            min_x = x
+
+    def get_mean()
+        if count > 0
+            sum / count
+        else
+            nil
+
+    def get_stddev()
+        if count > 1
+            var x = sqrt((sum_sqr - sum * sum / count) / (count - 1))
+            // this is a bit dangerous: I know that nan occurs from
+            // underflow when all data points are the same, in which
+            // case variance is zero. The danger is overflow may also
+            // give nan and be reported as zero std. dev.
+            // Note that 2 * nan == nan, so this detects nans and zeros
+            if x == 2 * x // test for nan or zero
+                x = 0
+            x
+        else
+            nil
+
+    def print_stats()
+        print "Number of points:", count
+        print "Max:", max_x
+        print "Min:", min_x
+        print "Mean:", get_mean()
+        print "Std.Dev.:", get_stddev()
+
+    def save_data(filename)
+        var keep = stdout
+        stdout = open(filename, "w")
+        if stdout
+            for x in data
+                print x
+        stdout.close()
+        stdout = keep        
+

@@ -1,0 +1,173 @@
+# http.srp -- HTTP protocol library
+#
+# Roger B. Dannenberg
+# Jan 2014
+
+require "debug"
+require "url"
+
+http_no_poll_states = [nil, 'fail', 'done']
+
+
+class Http_request:
+    var url
+    var header
+    var data
+    var socket
+    var state
+    var error
+    var length
+    var trace_flag
+
+    def init(optional trace)
+        trace_flag = trace
+
+    // remove leading white space
+    def trim(s):
+        while len(s) > 0 and isspace(s[0]):
+            s = subseq(s, 1)
+        return s
+
+    def cleanup()
+        if socket and socket >= 0:
+            socket_close(socket)
+        socket = nil
+        msg = nil
+
+    def fail(msg):
+        cleanup()
+        state = 'fail'
+        error = "Error in Http_request - " + msg
+
+    def make_request(url):
+        return "GET /" + url.address + " HTTP/1.0\r\n\r\n"
+        # append this text before the blank line for an HTTP/1.1 request,
+        # but then you also need to handle chunked responses:
+        # "Host: " + url.host + ("" if url.port == "" else ":" + url.port) +
+        #          "\r\n\r\n"
+        
+
+    def get(url):
+        cleanup() // in case previous transfer in progress
+        url = Url(url)
+        if url.protocol != "http":
+            return fail("only http protocol is supported")
+        var port = 80 if url.port == "" else int(url.port)
+        socket = server_connect(url.host, port)
+        if socket == -1:
+            return fail("connect to server failed")
+        var req = make_request(url)
+        if trace_flag:
+            print ">>>http.srp - make_request to", url.host, url.address
+            print req
+            print "<<<end http.srp - make_request"
+        socket_send(socket, req)
+        length = 0
+        header = ""
+        data = ""
+        state = 'waithdr'
+
+    def poll():
+        if state in http_no_poll_states:
+            return
+        var rslt = socket_receive(socket, 250)
+        if not rslt:
+            return
+        elif type(rslt) == 'String':
+            data = data + rslt
+            if state == 'waithdr':
+                var split = find(data, "\r\n\r\n")
+                if split > -1:
+                    header = subseq(data, 0, split + 4)
+                    data = subseq(data, split + 4) // start of content
+                    var len_pos = find(header, "\r\nContent-Length:", 0, split)
+                    if len_pos > -1:
+                        var len_end = find(header, "\r\n", len_pos + 17)
+                        var len_str = subseq(header, len_pos + 17, len_end)
+                        // trim leading spaces and convert to integer 
+                        length = int(trim(len_str))
+                        state = 'waitdata'
+                    else: // no length given in header
+                        return fail("no length received in header")
+                // else no split yes, so we're still waiting for full header
+            // this is not an "else" because we might already have the data
+            if state == 'waitdata'
+                if len(data) >= length:
+                    state = 'done'
+                    // look for error code in header
+                    var status = find(header, " ")
+                    if status > -1:
+                        var line_end = find(header, "\r\n")
+                        if line_end == -1:
+                            line_end = len(header)
+                        status = trim(subseq(header, status, line_end))
+                        var err = int(status)
+                        if err != 200:
+                            return fail("HTTP returned " + status)
+                    cleanup() // close connection, data is here
+                // else we wait for the rest of the data to arrive
+
+# example
+def http_get_example():
+    req = Http_request()
+    req.get("http://www.cs.cmu.edu/~rbd/test.htm")
+    while req.state != 'fail' and req.state != 'done':
+        time_sleep(0.1)
+        req.poll()
+    if req.state == 'fail':
+        print req.error
+    else:
+        print "http_get_example: content at url is \n"; req.data
+
+# http_get_example()
+
+class Http_post (Http_request):
+    var post_data
+    
+    def add_field(name, value):
+        if post_data
+            post_data = post_data + "&"
+        else
+            post_data = "" // initialize post_data here
+        post_data = post_data + url_encode(name) + "=" + url_encode(value)
+
+    def make_request(url):
+        if host:
+            host = "Host: " + host + "\r\n"
+        else:
+            host = ""
+        return "POST " + url.address + " HTTP/1.1\r\n" +
+               host +
+               "User-Agent: Crappy http hacks\r\n" +
+               "Accept: text/html\r\n" +
+               "Accept-Language: en-US,en;q=0.5\r\n" +
+               "Accept-Encoding: gzip, deflate\r\n" +
+               "Cookie: Drupal.toolbar.collapsed=0\r\n" +
+               "Connection: keep-alive\r\n" +
+               "Content-Type: application/x-www-form-urlencoded\r\n" +
+               "Content-Length: " + str(len(post_data)) + "\r\n\r\n" +
+               post_data
+
+    def post(url, optional host_)
+        host = host_
+        get(url) // the magic here is that get will use make_request() to
+                 // construct the header, so we'll actually issue a POST
+
+
+def http_post_example():
+    req = Http_post(t)
+    req.add_field("username","glo")
+    print "Password: ";
+    req.add_field("password", stdin.token())
+    req.add_field("request", "serverinfo")
+    req.add_field("data", "This is GLO serverinfo - I hope it works")
+    req.post("http://globalnetorchestra.org/pnoinfo.php", "globalnetorchestra.org")
+    while req.state != 'fail' and req.state != 'done':
+        time_sleep(0.1)
+        req.poll()
+    if req.state == 'fail':
+        print req.error
+    else:
+        print "http_post_example: returned data is \n"; req.data
+
+# http_post_example()

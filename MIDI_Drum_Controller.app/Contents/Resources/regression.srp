@@ -1,0 +1,54 @@
+// Regression is a class to compute a linear regression
+// 
+// call point(x, y) to add a data point
+// call regress() to compute the regression
+// call f(x) to evaluate the linear regression at x
+// call f_inv(y) to evaluate the inverse linear regression at y
+// to restart with new points, call init()
+// regress() can be called after each point()
+//
+// other forms of regression should be added. This one does
+// standard least squares regression
+
+class Regression
+    var sumxx, sumyy, sumxy, sumx, sumy
+    var n, a, b
+
+    def init()
+        sumxx = 0
+        sumyy = 0
+        sumxy = 0
+        sumx = 0
+        sumy = 0
+        n = 0
+
+    def point(x, y)
+        //print "add(", x, y, ")", 
+        sumx = sumx + x
+        sumy = sumy + y
+        sumxx = sumxx + x * x
+        sumyy = sumyy + y * y
+        sumxy = sumxy + x * y
+        n = n + 1
+
+    def remove_point(x, y)
+        sumx = sumx - x
+        sumy = sumy - y
+        sumxx = sumxx - x * x
+        sumyy = sumyy - y * y
+        sumxy = sumxy - x * y
+        n = n - 1
+
+    def regress()
+        var sxx = sumxx - sumx * sumx / n
+        var sxy = sumxy - sumx * sumy / n
+        b = sxy / sxx
+        a = (sumy - b * sumx) / n
+
+    def f(x)
+        //print "f("; x; "),a=";a;",b=";b, 
+        a + b * x
+
+    def f_inv(y)
+        (y - a) / b
+

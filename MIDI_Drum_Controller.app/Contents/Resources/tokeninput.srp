@@ -1,0 +1,65 @@
+// tokeninput -- a library to read tokens from a file, keeping track of
+//     line numbers and position for error reporting
+
+class Token_input:
+    var inf
+    var line
+    var buffer
+    var token_buffer
+
+    def init(f):
+        inf = f
+        line = 1
+
+    def getc():
+        var c
+        if not buffer:
+            c = inf.read(1)
+        else:
+            c = buffer
+            buffer = nil
+        if c == "":
+            line = -1
+        elif c == "\n":
+            line = line + 1
+        return c
+
+    def ungetc(c):
+        if c == "\n":
+            line = line - 1
+        buffer = c
+
+    def next_char(test):
+        // test to see if next character is test, if not unget
+        var c = getc()
+        if c == test:
+            return true
+        ungetc(c)
+        return false
+
+    def get_token()
+        var token = ""
+        if token_buffer:
+            token = token_buffer
+            token_buffer = nil
+            return token
+        // get a token from the input file
+        // remove white space
+        var c = getc()
+        while c != "" and isspace(c):
+            c = getc()
+        if c == "":
+            return nil
+        while c != "" and not isspace(c):
+            token = token + c
+            c = getc()
+        ungetc(c)
+        return token
+
+    def unget_token(tok):
+        token_buffer = tok
+
+    def skip_line()
+        var c = getc()
+        while c and c != "\n":
+            c = getc()

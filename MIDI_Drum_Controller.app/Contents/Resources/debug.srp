@@ -1,0 +1,157 @@
+// debugger -- load this to catch runtime exceptions
+
+// if dbg_exit_function is set to some symbol, that
+// function is called upon exit
+dbg_exit_function = nil
+
+// if dbg_stack_print is true, a stack trace is printed
+// automatically upon entry to the debugger
+dbg_stack_print = nil
+
+// if dbg_zone_print is true, the Aura zone is printed
+// automatically upon entry to the debugger (only for
+// Serpent running embedded in an Aura application)
+dbg_zone_print = nil
+
+require "strparse"
+
+
+def debugger(msg, frame):
+    var temp = stdout
+    stdout = stderr
+    var frames = []
+    print msg; ", debugger invoked."
+    print "Method: "; frame_method(frame); ", PC: "; frame_pc(frame);
+    print ", Line: "; frame_line(frame); ", File: "; frame_file(frame)
+    if dbg_stack_print:
+        dbg_stacktrace(frame)
+    if dbg_zone_print:
+        print "In zone", aura_zone_id
+    var curframe = frame
+    while t:
+        print runtime_exception_nesting(); ">",
+        var c = stdin.read(1)
+        print "debugger reads", c
+        if c == "?":
+            dbg_stacktrace(curframe)
+            stdin.readline()
+        elif c == "*":
+            dbg_showframe(curframe)
+            stdin.readline()
+        elif c == "+":
+            if curframe:
+                frames.append(curframe)
+                curframe = frame_previous(curframe)
+            dbg_showframe(curframe)
+            stdin.readline()
+        elif c == "-":
+            if frame != curframe:
+                curframe = frames.unappend()
+                dbg_showframe(curframe)
+            stdin.readline()
+        elif c == "=":
+            eval(stdin.readline())
+        elif isalpha(c):
+            stdin.unread(c)
+            dbg_variable(curframe)
+        elif c == "!":
+            print "Exiting ..."
+            stdout = temp
+            if dbg_exit_function:
+                print "calling", dbg_exit_function
+                funcall(dbg_exit_function)
+            exit()
+        elif c == ">":
+            print "Resume execution..."
+            dbg_end() // this unwinds execution to eval() or command interpreter
+            return
+        else:
+            print "? - stack trace"
+            print "<id> - print variable value"
+            print "* - print all variables"
+            print "+ - up one level (to caller)"
+            print "- - down one level (to callee)"
+            print "=<expr> - evaluate expression"
+            print "! - exit"
+            print "> - resume execution"
+
+
+def dbg_stacktrace(f):
+    print "Class: "; frame_class(f); ", Method: "; frame_method(f);
+    print ", Line: "; frame_line(f)
+    var prev = frame_previous(f)
+    if prev:
+        dbg_stacktrace(prev)
+
+
+def dbg_showframe(f):
+    print "Class: ", frame_class(f); ", Method: "; frame_method(f)
+    print frame_variables(f)
+
+
+def dbg_variable(f):
+    var expr = stdin.readline()
+    expr = String_parse(expr)
+    var name = expr.get_csym()
+    print "dbg_variable name =", name
+    var symbol = intern(name)
+    var vars = frame_variables(f)
+    var value
+    var got_value
+    if vars and vars.has_key(symbol):
+        print name; " is a local"
+        value = vars[symbol]
+        got_value = t
+    else:
+        var ob = frame_object(f)
+        if ob:
+            vars = object_variables(ob)
+            // print "object", ob; ", vars", vars
+            if vars and vars.has_key(symbol):
+                print name; " is an instance variable"
+                value = vars[symbol]
+                got_value = t
+    if not got_value:
+        print name; " is a global"
+        value = symbol_value(symbol)
+    while t:
+        expr.skip_space()
+        var more = expr.peek()
+        var field
+        // print "debug loop, more: |"; more; "|", "string", expr.string, "pos ", expr.pos
+        if not more:
+            // remove the newline before printing expression
+            print subseq(expr.string, 0, -1); " = "; value
+            return
+        if more == ".":
+            expr.pos = expr.pos + 1
+            vars = object_variables(value)
+            if expr.peek() == "*":
+                print subseq(expr.string, 0, -1); " -> "; vars
+                return
+            field = expr.get_csym()
+            if field and vars.has_key(field):
+                field = intern(field)
+                value = vars[field]
+            else:
+                print "field not found"
+                return
+        else:
+            print "variable syntax error: \""; expr.remainder(); "\""
+            return
+
+
+def runtime_exception(msg, frame):
+    # var f = frame_previous()
+    print "runtime exception handler called"
+    print "exception is:", msg
+    if msg != "array too big":
+        # if "array too big", then data is not printable
+        print "frame variables:", frame_variables(frame)
+    print "frame pc:", frame_pc(frame)
+    print "frame method:", frame_method(frame)
+    print "frame class:", frame_class(frame)
+    # print "frame previous:", frame_previous(frame)
+    print
+    debugger(msg, frame)
+

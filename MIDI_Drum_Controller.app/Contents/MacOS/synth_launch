@@ -1,0 +1,5 @@
+#!/bin/bash
+synthpath=$0
+cd "${synthpath%/*}"
+cd ../Resources
+../MacOS/synth

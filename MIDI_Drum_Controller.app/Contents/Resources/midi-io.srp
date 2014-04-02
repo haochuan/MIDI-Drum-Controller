@@ -1,0 +1,213 @@
+# midi-io -- midi i/o for serpent and wxserpent (not Aura) programs
+#            implements API from API.txt
+#
+# after loading, call midi_out.start(latency) to initialize midi output.
+#
+# Midi output is invoked by calling methods on midi_out. These all assume
+# that you are running inside a scheduler and use timestamps for accurate
+# timing (assuming that computation is not further than latency ms behind
+# schedule.
+#
+# You must bracket midi output calls between rtsched.start_use() and
+# rtsched.finish_use() to send output that it not caused directly or
+# indirectly by a scheduled event. This will establish a logical
+# execution time on which timestamps can be based.
+
+require "debug"
+require "sched"
+
+midi_note_on_count = 0
+midi_note_off_count = 0
+
+LATENCY = 0
+
+midi_status_noteoff = 0x80
+midi_status_noteon = 0x90
+midi_status_poly_touch = 0xA0
+midi_status_control = 0xB0
+midi_status_program = 0xC0
+midi_status_touch = 0xD0
+midi_status_pitchbend = 0xE0
+// standard controller numbers
+midi_bank_lsb = 32
+midi_bank_msb = 0
+midi_alloff = 0x7B
+
+midi_trace = nil
+
+def print_midi_device_info(id)
+    var info = midi_get_device_info(id)
+    print info
+
+
+def secs_to_tick(s)
+    int(s * 1000)
+
+
+def midi_data(x)
+    # convert x (0-1) to midi data (0-127)
+    round(x * 127, 0)
+
+
+class Midi_out
+    var port // midi output port
+
+    // send a note-on to port
+    //     schedule a note-off (set dur to nil to avoid note-off)
+    //     (also if vel is zero, no note-off is scheduled)
+    //
+    def note(chan, key, vel, dur)
+        if midi_trace
+            print "midi note: dur "; dur; ": "
+        note_on(chan, key, vel)
+        if vel > 0 and dur
+            the_sched.cause(dur, this, 'note_on', chan, key, 0)
+
+
+    def note_on(chan, key, loud):
+        var ticks = rtsched.get_tick()
+        if midi_trace
+            display "midi note_on", ticks, chan, key, loud
+        chan = chan & 15
+        midi_write(port, ticks,
+                   chr(midi_status_noteon + chan) + chr(key) + chr(loud))
+        if loud > 0:
+            midi_note_on_count = midi_note_on_count + 1
+        else:
+            midi_note_off_count = midi_note_off_count + 1
+
+
+    def program(chan, program, optional bank_lsb, bank_msb)
+        var ticks = rtsched.get_tick()
+        if midi_trace
+            display "midi program", chan, program, bank_lsb, bank_msb
+        chan = chan & 15
+        if bank_msb
+            midi_write(port, ticks, chr(midi_status_control + chan) + 
+                                            chr(midi_bank_msb) + chr(bank_msb))
+        if bank_lsb
+            midi_write(port, ticks, chr(midi_status_control + chan) + 
+                                            chr(midi_bank_lsb) + chr(bank_lsb))
+        midi_write(port, ticks, chr(midi_status_program + chan) + 
+                                        chr(program) )
+
+    def alloff():
+        var ticks = rtsched.get_tick()
+        if midi_trace
+            display "midi alloff", ticks
+        for chan = 0 to 16:
+            midi_write(port, ticks, chr(midi_status_control + chan) + 
+                                chr(midi_alloff) + chr(0))
+    
+    
+    def channel_message(status, chan, data1, data2):
+        var ticks = rtsched.get_tick()
+        if midi_trace
+            display "midi channel_message", ticks, hex(status), chan, data1, data2
+        # send 3-byte midi message for a given channel
+        chan = chan & 15
+        data1 = min(127, max(0, data1))
+        data2 = min(127, max(0, data2))
+        midi_write(port, ticks,
+                   chr(status + chan) + chr(data1) + chr(data2))
+    
+    
+    def channel_message_2(status, chan, data):
+        var ticks = rtsched.get_tick()
+        if midi_trace
+            display "midi channel_message_2", ticks, hex(status), chan, data
+        # send a 2-byte midi message for a given channel
+        //display "midi channel_message_2", midi, status, chan, data
+        chan = chan & 15
+        data = min(127, max(0, data))
+        midi_write(port, ticks, chr(status + chan) + chr(data))
+    
+    
+    def chan(byte)
+        byte & 0xF
+    
+    
+    def start(latency)
+        if port != nil
+            return
+        port = midi_create()
+        var midi_dev = midi_out_default()
+        if midi_open_output(port, midi_dev, 100, latency) != 0:
+             return "Error opening default MIDI device"
+        else:
+             print "Open default MIDI device successfully"
+             print_midi_device_info(midi_dev)
+    
+
+    def finish()
+        if port == nil
+            return
+        midi_close(port)
+        port = nil
+
+
+// take over the polling function to check for midi and osc
+//
+def sched_poll()
+    var msg
+    if midi_in
+        msg = midi_read(midi_in)
+    if msg
+        var timestamp = msg[0]
+        msg = msg[1]
+        //display "midi in", time_get(), RNOW, timestamp
+        # doesn't seem to be important -- this would affect things if
+        # scheduler is behind, but then would this even get called?
+        # if timestamp > RNOW
+        #    rtsched.update_ticks(timestamp)
+        var status = ord(msg[0])
+        var cmd = status & 0xF0
+        var channel = status & 0xF
+        var data1 = ord(msg[1])
+        var data2 = ord(msg[2])
+        if cmd == midi_status_noteon:
+            if data2 > 0
+                midi_handler.noteon(channel, data1, data2)
+            else
+                midi_handler.noteoff(channel, data1, data2)
+        elif cmd == midi_status_noteoff:
+            midi_handler.noteoff(channel, data1, data2)
+        elif cmd == midi_status_control:
+            midi_handler.control(channel, data1, data2)
+        elif cmd == midi_status_poly_touch:
+            midi_handler.poly_touch(channel, data1, data2)
+        elif cmd == midi_status_touch:
+            midi_handler.touch(channel, data1)
+        elif cmd == midi_status_program:
+            midi_handler.program(channel, data1)
+        else
+            display "unhandled", hex(cmd), channel, data1, data2
+    if osc_enabled
+        osc_server_poll()
+    funcall(interactive_midi_poll)
+
+
+// Midi_handler should be subclassed by application
+class Midi_handler
+    def init()
+        nil
+    def noteon(chan, pitch, vel)
+        display "keydown", chan, pitch, vel
+    def noteoff(chan, pitch, vel)
+        display "keyup", chan, pitch, vel
+    def control(chan, cnum, val)
+        display "control", chan, cnum, val
+    def poly_touch(chan, key, val)
+        display "poly_touch", chan, key, val
+    def touch(chan, val)
+        display "touch", chan, val
+    def program(chan, val)
+        display "program", chan, val
+
+
+// midi_handler should be redefined by application
+midi_handler = Midi_handler()
+
+midi_in = nil
+midi_out = Midi_out()
+

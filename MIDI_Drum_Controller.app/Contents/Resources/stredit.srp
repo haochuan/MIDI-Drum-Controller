@@ -1,0 +1,161 @@
+# String_edit class
+
+// Originally developed to update links in web pages, this 
+// class is intended to act like a text editor -- you open
+// files, search for strings, delete regions, insert text,
+// and save the file, all using simple methods.
+//
+// There are also some string utilities:
+//    str_sub does global substitution, and
+//    str_escape replaces special characters with escaped ones
+//    str_count counts how many times a char (e.g. newline) is in string
+//
+// Probably this class should grow to accommodate needs.
+// Right now, the methods are pretty basic, but all that
+// I needed so far. -RBD
+
+class String_edit:
+    var front
+    var back
+    var name
+
+    def init()
+        front = []
+        back = ""
+
+    # edit_string -- replace edit buffer with a string for editing
+    def edit_string(s)
+        front.clear()
+        back = s
+
+    # open -- replace edit buffer with contents of file for editing
+    #    file can be a FILE or the STRING name of a file
+    def open(file)
+        front = []
+        back = ""
+        name = "<unknown>"
+        var inf
+        if type(file) == 'File'
+            inf = file
+        else
+            name = file
+            inf = open(name, "r")
+            if not inf:
+                print "String_edit::open: Could not open " + name
+                return nil
+        var s = inf.read(10000)
+        while len(s) > 0:
+            back = back.append(s)
+            s = inf.read(10000)
+        inf.close()
+        return t
+
+    def delete_upto(pattern):
+        var pos = find(back, pattern)
+        var deleted
+        if pos >= 0:
+            deleted = subseq(back, 0, pos)
+            back = subseq(back, pos)
+        return deleted
+
+    def delete_thru(pattern):
+        var pos = find(back, pattern)
+        var deleted
+        if pos >= 0:
+            deleted = subseq(back, 0, pos + len(pattern))
+            back = subseq(back, pos + len(pattern))
+        return deleted
+
+    def accept_thru(pattern):
+        var pos = find(back, pattern)
+        var accepted
+        if pos >= 0:
+            pos = pos + len(pattern)
+            accepted = subseq(back, 0, pos)
+            front.append(accepted)
+            back = subseq(back, pos)
+        return accepted
+
+    def accept_upto(pattern):
+        var pos = find(back, pattern)
+        var accepted
+        if pos >= 0:
+            accepted = subseq(back, 0, pos)
+            front.append(accepted)
+            back = subseq(back, pos)
+        return accepted
+
+    def insert_string(s):
+        front.append(s)
+
+    def delete_n(n)
+        back = subseq(back, n)
+
+    def global_replace(pattern, replacement)
+        var accepted = accept_upto(pattern)
+        while accepted:
+            insert_string(replacement)
+            delete_n(len(pattern))
+            accepted = accept_upto(pattern)
+        return t
+
+    def save_as(filename):
+        front.append(back)
+        back = ""
+        var outf = open(filename, "w")
+        if outf:
+            for s in front:
+                outf.write(s)
+            outf.close()
+            return t
+        return nil
+
+    def get_all()
+        front.append(back)
+        back = ""
+        return flatten(front)
+
+    def rewind()
+        edit_string(get_all())
+
+// some extra string utilities:
+
+def str_sub(source, pattern, replacement)
+    # substitute replacement for all occurrences of pattern in source
+    var pos = 0
+    var result = [] // accumulate result substrings here
+    while true:
+        var oldpos = pos
+        pos = find(source, pattern, oldpos)
+        if pos != -1:
+            result.append(subseq(source, oldpos, pos))
+            result.append(replacement)
+            pos = pos + len(pattern)
+        else
+            result.append(subseq(source, oldpos))
+            return flatten(result)
+ 
+str_escape_chars = ["\\n", "\\t", "\\\\", "\\r", "\\\""]
+ 
+def str_escape(str, quote):
+    var length = len(str)
+    var result = quote
+    for i = 0 to length:
+        if not isalnum(str[i]):
+            var special = find("\n\t\\\r\"", str[i])
+            if special >= 0:
+                result = result + str_escape_chars[special]
+            else:
+                result = result + str[i]
+        else:
+            result = result + str[i]
+    result + quote
+ 
+
+def str_count(str, char):
+    var count = 0
+    var pos = find(str, char)
+    while pos != -1:
+        count = count + 1
+        pos = find(str, char, pos + 1)
+    return count

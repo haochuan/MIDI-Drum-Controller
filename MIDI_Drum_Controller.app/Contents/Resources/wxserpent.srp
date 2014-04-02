@@ -1,0 +1,797 @@
+// wxserpent -- GUI classes using wxWindows
+
+WXS_NOT_CHECKABLE = -1 // a value used in menu event handling
+
+wxs_event_names = { WXS_MOVE: 'MOVE', 
+                WXS_LEFT_DOWN: 'LEFT_DOWN',
+                WXS_LEFT_UP: 'LEFT_UP',
+                WXS_SHIFT_LEFT_DOWN: 'SHIFT_LEFT_DOWN',
+                WXS_RIGHT_DOWN: 'RIGHT_DOWN',
+                WXS_RIGHT_UP: 'RIGHT_UP',
+                WXS_SHIFT_RIGHT_DOWN: 'SHIFT_RIGHT_DOWN' }
+
+
+def wxs_event_name(event):
+    wxs_event_names.get(event, event)
+
+
+control_next_id = 1
+// Note: this is the maximum number of controls that can exist. Controls
+// are not garbage collected, but they can be explicitly deleted.
+control_map = array(WXS_CONTROLS_MAX)
+
+def wxs_handler(id, event, x, y):
+    var obj = control_map[id]
+    if obj:
+        if event == WXS_PAINT:
+            obj.paint(x != 0)
+        else:
+            obj.handle(event, x, y)
+
+
+class Control:
+    var id
+    var parent_id
+    var method // what to call when control is activated
+    var target // object to send method to
+
+    def init(p):
+        control_init(p)
+
+    // providing an ordinary method for initialization allows 
+    // Scrolled, a subclass of Canvas, a subclass of Control,
+    // to do standard intialization without creating a Canvas
+    // by calling control_init() on itself within it's init method
+    def control_init(p)
+        method = nil
+        // parent p can be an object or an integer ID;
+        // convert to integer ID and save it in parent_id field
+        if isinstance(p, Control)
+            p = p.id
+        parent_id = p
+        id = control_next_id
+        if id >= WXS_CONTROLS_MAX
+            // start reusing control id's (hope something was deleted)
+            id = control_map.index(nil)
+            if id == -1:
+                print "ERROR: exceeded WXS_CONTROLS_MAX = "; WXS_CONTROLS_MAX;
+                print " number of controls"
+                // we will crash with id == -1
+        control_next_id = control_next_id + 1
+        control_map[id] = this
+
+    def filter_event_type(event)
+        // display "Control::filter_event_type", isinstance(this, Panel), isinstance(this, Window), isinstance(this, Default_window), isinstance(this, Canvas)
+        event != action_event()
+
+    def delete():
+        wxs_control_delete(id)
+        control_map[id] = nil
+
+    def get_left():
+        wxs_control_get_left(id)
+
+    def get_top():
+        wxs_control_get_top(id)
+
+    def get_width():
+        wxs_control_get_width(id)
+
+    def get_height():
+        wxs_control_get_height(id)
+
+    def get_count(): // only works for Radiobox, Listbox, Combobox, Choice
+        wxs_control_get_count(id)
+
+    def set_size(w, h):
+        wxs_control_set_size(id, w, h)
+
+    def set_width(w):
+        wxs_control_set_size(id, w, wxs_control_get_height(id))
+
+    def set_height(h):
+        wxs_control_set_size(id, wxs_control_get_width(id), h)
+
+    def set_position(x, y):
+        wxs_control_set_position(id, x, y)
+
+    def set_font(size, family, style, weight, underline, name)
+        wxs_control_set_font(id, size, family, style, weight, underline, name)
+
+    def set_color(color)
+        wxs_control_set_color(id, color)
+
+    def set_rgb(r, g, b)
+        wxs_control_set_rgb(id, r, g, b)
+
+    def set_value(x): // only works for Gauge, Slider, and Notebook
+        wxs_control_set_value(id, x)
+
+    def set_string(string) // only works for Textctrl, Multitext and Statictext
+        wxs_text_set_string(id, string)
+
+    def set_and_act(optional x = 0)
+        set_value(x)
+        handle(action_event(), x, 0)
+
+    def get_parent()
+        control_map[parent_id]
+
+    def add_target_method(tar, met)
+        if method:
+            method.append(met)
+            target.append(tar)
+        else:
+            method = met
+            target = tar
+
+    def handle(event, x, y):
+        if filter_event_type(event)
+            return true // intentionally ignore event
+        if handle_target_method(event, x, y, target, method)
+            return true
+        // pass event to window
+        if parent_id:
+            return control_map[parent_id].handle(event, x, y)
+        return false
+
+    // send event according to target and method (singletons or arrays)
+    def handle_target_method(event, x, y, trgt, mthd)
+        if isarray(mthd):
+            for meth at i in mthd:
+                dispatch(event, x, y, trgt[i], mthd[i]) 
+        elif mthd:
+            dispatch(event, x, y, trgt, mthd)
+        else
+            return false
+        return true
+
+    // send to singleton target and method (send or funcall)
+    def dispatch(event, x, y, trgt, mthd):
+        if trgt:
+            send(trgt, mthd, this, event, x, y)
+        else:
+            funcall(mthd, this, event, x, y)
+        
+
+class Button (Control):
+    def init(parent, label, x, y, w, h):
+        super.init(parent)
+        wxs_button_create(id, parent_id, label, x, y, w, h)
+
+    def action_event()
+        WXS_BUTTON_CLICKED
+
+
+class Choice (Control):
+    def init(parent, x, y, w, h):
+        super.init(parent)
+        wxs_choice_create(id, parent_id, x, y, w, h)
+
+    def action_event()
+        WXS_CHOICE_SELECTED
+
+    def append(label):
+        wxs_choice_append(id, label)
+
+    def clear()
+        wxs_choice_clear(id)
+
+    def value():
+        # note: this was changed from wxs_control_get_value(), 
+        #       so now you get a string
+        wxs_text_string(id)
+
+    def set_value(label)
+        wxs_text_set_string(id, label)
+
+    def handle(event, x, y)
+        super.handle(event, value(), 0)
+
+
+class Checkbox (Control):
+    def init(parent, label, x, y, w, h):
+        super.init(parent)
+        wxs_checkbox_create(id, parent_id, label, x, y, w, h)
+
+    def value():
+        wxs_control_get_value(id) != 0
+
+    def set_value(x)
+        var val = 0 // convert boolean x to integer val
+        if x == true or x == 1
+            val = 1
+        if wxs_control_get_value(id) != val:
+            wxs_control_set_value(id, val)
+            // wxwindows does not generate event, so do it here
+            handle(WXS_CHECKBOX_CLICKED, x, 0)
+
+    def action_event()
+        WXS_CHECKBOX_CLICKED
+
+    def handle(event, x, y)
+        // need to handle both true/false and 1/0 values of x
+        x = (x == t) or (x == 1)
+        super.handle(event, x, y)
+
+        
+class Combobox (Control):
+    // due to some strange behavior (Windows only?), a
+    // WXS_TEXT_UPDATED event is returned after each list
+    // selection, and the value is wrong, so we will just
+    // detect these events and substitute the correct string
+    // value, which is stored in selection. This variable
+    // should be considered private:
+    var selection
+    var current_value
+
+    def init(parent, x, y, w, h):
+        super.init(parent)
+        current_value = ""
+        wxs_combobox_create(id, parent_id, x, y, w, h)
+
+    def append(label):
+        wxs_combobox_append(id, label)
+
+    def value():
+        return current_value
+
+    def set_value(text):
+        current_value = text
+        wxs_text_set_string(id, text)
+
+    def clear()
+        wxs_combobox_clear(id)
+
+    def filter_event_type(event)
+        event != WXS_TEXT_UPDATED and event != WXS_COMBOBOX_SELECTED
+
+    // override handle to retrieve string value as "y"
+    def handle(event, x, y)
+        if event == WXS_TEXT_UPDATED:
+            if selection:
+                x = selection
+                selection = nil
+            else:
+                x = wxs_text_string(id) // yes, you can call this on a combobox
+        elif event == WXS_COMBOBOX_SELECTED
+            x = wxs_combobox_string(id)
+            selection = x // prepare to ignore next WXS_TEXT_UPDATED
+        else
+            return
+        current_value = x
+        super.handle(event, x, y)
+
+    def action_event()
+        WXS_TEXT_UPDATED
+
+
+class Listbox (Control):
+    def init(parent, x, y, w, h, optional m):
+        # m is boolean. If true, this is a multiple selection list
+        super.init(parent)
+        wxs_listbox_create(id, parent_id, x, y, w, h, m)
+
+    def append(label):
+        wxs_listbox_append(id, label)
+
+    def clear():
+        wxs_listbox_clear(id)
+
+    def value():
+        # note: this was changed from wxs_control_get_value(), 
+        #       so now you get a string
+        # note2: only valid if this is NOT a multiple selection listbox
+        #       (see last parameter of init)
+        wxs_text_string(id)
+
+    def set_value(text)
+        set_string(text)
+        // assumes text is a string within the listbox
+        super.handle(WXS_LISTBOX_SELECTED, text, 0)
+
+    def handle(event, x, y)
+        super.handle(event, value(), y)
+
+    def action_event()
+        WXS_LISTBOX_SELECTED
+
+    def is_selected(n):
+        wxs_listbox_is_selected(id, n)
+
+    def get_string(n):
+        # return string at location n (note that this does not
+        #    by definition return the/a selected string.
+        wxs_listbox_string(id, n)
+
+    def get_selections():
+        var s = []
+        for i = 0 to get_count():
+            if is_selected(i):
+                s.append(get_string(i))
+        return s
+
+
+class Multitext (Control):
+    def init(parent, x, y, w, h):
+        super.init(parent)
+        wxs_multitext_create(id, parent_id, x, y, w, h)
+
+    def set_value(text)
+        set_string(text)
+
+    def value():
+        wxs_text_string(id)
+
+    def action_event()
+        WXS_TEXT_UPDATED
+
+    // this removes the value from x for consistency
+    def handle(event, x, y)
+        super.handle(event, 0, 0)
+
+
+class Notebook (Control):
+    def init(parent, x, y, w, h):
+        super.init(parent)
+        wxs_notebook_create(id, parent_id, x, y, w, h)
+
+    def add_page(page, label)
+        if isinstance(page, Control)
+            page = page.id
+        wxs_add_page(id, page, label)
+
+    def value():
+        wxs_control_get_value(id)
+
+    def filter_event_type(event)
+        false
+        
+
+
+class Textctrl (Control):
+    def init(parent, text, x, y, w, h):
+        super.init(parent)
+        wxs_textctrl_create(id, parent_id, text, x, y, w, h)
+
+    def value():
+        wxs_text_string(id)
+
+    def set_value(text):
+        set_string(text)
+
+    def action_event()
+        WXS_TEXT_UPDATED
+
+    def filter_event_type(event)
+        event != WXS_TEXT_UPDATED and event != WXS_TEXT_ENTER 
+        
+    // this removes the value from x for consistency
+    def handle(event, x, y)
+        super.handle(event, 0, 0)
+
+
+class Spinctrl (Control):
+    def init(parent, min, max, initial, x, y, w, h)
+        super.init(parent)
+        wxs_spinctrl_create(id, parent_id, x, y, w, h, min, max, initial)
+
+    def value():
+        wxs_control_get_value(id)
+
+    def action_event()
+        WXS_SPINCTRL_UPDATED
+
+
+class Statictext (Control):
+    def init(parent, text, x, y, w, h):
+        super.init(parent)
+        wxs_statictext_create(id, parent_id, text, x, y, w, h)
+
+    def filter_event_type(event)
+        false
+        
+
+class Radiobox (Control):
+    def init(parent, label, items, x, y, w, h):
+        // items is an array of strings, the button labels
+        var n = 0
+        super.init(parent)
+        for item in items:
+            wxs_radiobox_set_item_label(id, n, item)
+            n = n + 1
+        wxs_radiobox_create(id, parent_id, label, n, x, y, w, h)
+
+    def value():
+        wxs_control_get_value(id)
+
+    def action_event()
+        WXS_RADIOBOX_SELECTED
+
+
+class Panel (Control):
+    def init(parent, x, y, w, h):
+        super.init(parent)
+        wxs_panel_create(id, parent_id, x, y, w, h)
+
+    def filter_event_type(event)
+        false
+
+
+class Slider (Control):
+    var previous_value
+    
+    def init(parent, min, max, initial, x, y, w, h, optional horizontal = t):
+        super.init(parent)
+        wxs_slider_create(id, parent_id, initial, min, max, x, y, w, h,
+                          horizontal)
+
+    def handle(event, x, y):
+        //display "Slider::handle", event, x, y
+        if wxs_control_get_value(id) != previous_value:
+            previous_value = x
+            super.handle(WXS_SLIDER_UPDATED, x, 0)
+
+    def value():
+        wxs_control_get_value(id)
+
+    def set_value(val)
+        wxs_control_set_value(id, val)
+        // wxwindows does not generate event, so do it here
+        handle(WXS_SLIDER_UPDATED, val, 0)
+
+    def action_event()
+        WXS_SLIDER_UPDATED
+
+
+class Gauge (Control):
+    def init(parent, range, x, y, w, h):
+        super.init(parent)
+        wxs_gauge_create(id, parent_id, range, x, y, w, h)
+
+    def value():
+        wxs_control_get_value(id)
+
+    def filter_event_type(event)
+        false
+
+
+class Menu (Control):
+    var map // dictionary from index to menu item string
+    
+    // if map, a map is created (you can also just set map to {})
+    def init(parent, label):
+        super.init(parent)
+        if label == "File": // the menu is already created, but 
+            // we need to associate it with a control id
+            wxs_set_file_menu_id(id, parent_id)
+        elif label == "Help": // similar to "File": menu exists
+            wxs_set_help_menu_id(id, parent_id)
+        else: // create a new menu
+            wxs_menu_create(id, parent_id, label)
+        map = {}
+
+    def item(label, help, optional checkable, target, method):
+        var i = wxs_menuitem_create(id, label, help, checkable)
+        // store either just the label or an array of label, target, method
+        // so that when the item is selected we can retrieve the info
+        map[i] = [label, target, method] if method else label 
+        return i
+
+    def item_string(i): // convert item index to string
+        var label = map.get(i)
+        return label if isstring(label) else label[0]
+
+    def is_checked(n):
+        wxs_menu_get_checked(id, n)
+    
+    def set_checked(n, flag)
+        wxs_menu_set_checked(id, n, flag)
+
+    def set_and_act(n, optional flag = WXS_NOT_CHECKABLE)
+        if flag == t or flag == nil
+            set_checked(n, flag)
+            flag = (1 if flag else 0)
+        handle(WXS_MENU_SELECTED, n, flag)
+
+    def separator():
+        wxs_menu_separator(id)
+
+    def action_event()
+        WXS_MENU_SELECTED
+
+    def handle(event, x, y)
+        var item = map.get(x)
+        if filter_event_type(event):
+            return
+        // Is item an array with a method? If so, there is a special
+        // handler for this menu item.
+        if item and isarray(item) and len(item) > 2 and item[2]:
+            if handle_target_method(event, x, y, item[1], item[2]):
+                return true
+        // Not handled, invoke the handler(s) for the menu
+        super.handle(event, x, y)
+
+
+class Canvas (Control):
+    var canvas_id // where to draw -- see Scrolled_canvas
+
+    def init(parent, x, y, w, h):
+        super.init(parent)
+        canvas_id = id
+        wxs_canvas_create(id, parent_id, x, y, w, h)
+
+    def filter_event_type(event)
+        false
+
+    def paint(x):
+        return
+
+    // can't inherit this from Control because we need to use canvas_id
+    //  in case this is a scrolled_canvas
+    def set_font(size, family, style, weight, underline, name)
+        wxs_control_set_font(canvas_id, size, family, style,
+                             weight, underline, name)
+
+    def draw_line(x, y, x2, y2):
+        wxs_canvas_draw_line(canvas_id, x, y, x2, y2)
+
+    def draw_point(x, y):
+        wxs_canvas_draw_point(canvas_id, x, y)
+
+    def draw_rectangle(x, y, w, h):
+        wxs_canvas_draw_rectangle(canvas_id, x, y, w, h)
+
+    def draw_text(x, y, text):
+        wxs_canvas_draw_text(canvas_id, x, y, text)
+
+    def draw_ellipse(x, y, w, h):
+        wxs_canvas_draw_ellipse(canvas_id, x, y, w, h)
+
+    def draw_polygon(points):
+        // points are an array: [x0, y0, x1, y1, x2, y2, ...]
+        var i = 0
+        while i < len(points):
+            wxs_canvas_add_point(canvas_id, points[i], points[i + 1])
+            i = i + 2
+        wxs_canvas_draw_polygon(canvas_id)
+
+    def draw_image(image, optional x = 0, optional y = 0, 
+                   optional xscale = 1, optional yscale = 1,
+                   optional angle = 0):
+        // image is an Image object
+        wxs_canvas_draw_image(canvas_id, image.id, x, y, xscale, yscale, angle)
+
+    def set_pen_color(color, optional alpha = 255):
+        // color is a string color name
+        wxs_canvas_set_pen_color(canvas_id, color, alpha)
+
+    def set_pen_rgb(r, g, b, optional alpha = 255):
+        // r, g, b (0..255) specify RGB color values
+        wxs_canvas_set_pen_rgb(canvas_id, r, g, b, alpha)
+
+    def set_pen_width(width)
+        wxs_canvas_set_pen_width(canvas_id, width)
+
+    def set_brush_color(color, optional alpha = 255):
+        // color is a string color name
+        wxs_canvas_set_brush_color(canvas_id, color, alpha)
+
+    def set_brush_rgb(r, g, b, optional alpha = 255):
+        // r, g, b (0..255) specify RGB color values
+        wxs_canvas_set_brush_rgb(canvas_id, r, g, b, alpha)
+
+    def set_text_color(color, optional alpha = 255):
+        // color is a string color name
+        wxs_canvas_set_text_color(canvas_id, color, alpha)
+
+    def set_text_rgb(r, g, b, optional alpha = 255):
+        // r, g, b (0..255) specify RGB color values
+        wxs_canvas_set_text_rgb(canvas_id, r, g, b, alpha)
+
+    def clear(color):
+        wxs_canvas_clear(canvas_id, color)
+
+    def refresh(erase):
+        // call this to repaint the screen after changes
+        wxs_canvas_refresh(canvas_id, erase)
+
+
+// This class is used to deflect paint messages to the
+// container (a Scrolled_canvas). The user will subclass
+// Scrolled_canvas and define paint there.
+class Private_embedded_canvas (Canvas)
+    var container
+    def paint(x)
+        container.paint(x)
+    def handle(event, x, y)
+        container.handle(event, x, y)
+
+
+// A Scrolled_canvas is essentially a canvas with scrollbars
+// except it is contained within an instance of Scrolled.
+// Initially, the container and canvas are the same size.
+class Scrolled_canvas (Canvas):
+    var canvas   // the embedded canvas
+    var vw, vh // virtual size (size of canvas)
+
+    def init(parent, x, y, w, h):
+        vw = w
+        vh = h
+        control_init(parent)
+        wxs_scrolled_create(id, parent_id, x, y, w, h)
+        canvas = Private_embedded_canvas(id, 0, 0, w, h)
+        // canvas.paint() is forwarded to this object,
+        // and the user will subclass this one and override
+        // paint()
+        canvas.container = this
+        // redirect draw commands to embedded canvas:
+        canvas_id = canvas.id 
+
+    def set_virtualsize(w, h)
+        wxs_control_set_virtualsize(id, w, h)
+        canvas.set_size(w, h)
+        vw = w
+        vh = h
+
+    def get_virtualwidth()
+        vw
+
+    def get_virtualheight()
+        vh
+
+    def scroll(x, y)
+        wxs_scroll(id, x, y)
+        
+    def paint(x):
+        canvas.paint(x)
+
+
+class Scrolled (Panel):
+    var vw, vh
+
+    def init(parent, x, y, w, h)
+        control_init(parent)
+        wxs_scrolled_create(id, parent_id, x, y, w, h)
+        vw = w
+        vh = h
+
+    def set_virtualsize(w, h)
+        wxs_control_set_virtualsize(id, w, h)
+        vw = w
+        vh = h
+
+    def get_virtualwidth()
+        vw
+
+    def get_virtualheight()
+        vh
+
+    def scroll(x, y)
+        wxs_scroll(id, x, y)
+
+
+class Window (Control):
+    var menus // a dictionary of menu_name -> menu_object
+
+    def init(title, x, y, w, h):
+        super.init(nil)
+        wxs_window_create(id, title, x, y, w, h)
+
+    def handle(event, x, y):
+        if event == WXS_SIZE_CHANGED:
+            on_size(x, y)
+        else:
+            super.handle(event, x, y)
+
+    def filter_event_type(event)
+        false
+
+    def on_size(w, h):
+        nil // do nothing
+
+    def show_status(flag)
+        var iflag = 0
+        if flag
+            iflag = 1
+        wxs_window_showstatus(id, iflag)
+
+    def set_status(status)
+        wxs_window_set_status(id, status)
+
+    def set_fullscreen(full)
+        var iflag = 0
+        if full
+            iflag = 1
+        wxs_window_fullscreen(id, iflag)
+        
+    def get_menu(label):
+        if not menus:
+            menus = {}
+        var menu = menus.get(label)
+        if not menu:
+            menu = Menu(this, label)
+            menus[label] = menu
+        return menu
+
+
+class Container_window (Window):
+    var child
+    // inherit init() as is
+    def set_child(obj):
+        child = obj
+        child.set_position(0, 0)
+        on_size(0, 0)
+
+    def on_size(w, h):
+        if child:
+            // ignore actual size and use client region size:
+            child.set_size(get_width(), get_height())
+        
+
+// we need an object to represent the default window
+// probably the window should be created by serpent rather than
+// being created automatically, which forces us to generate a
+// shadow for it as follows...
+
+class Default_window (Window):
+    def init():
+        id = 0
+        control_map[0] = this
+
+default_window = Default_window()
+
+class Image (Canvas):
+    // init just gives this an ID and enters it in the control_map
+    def init(optional w, h)
+        control_init(nil)
+        canvas_id = id
+        if w // non-null means create a bitmap for drawing
+            wxs_image_init(id, w, h)
+
+    def load(filename)
+        return wxs_image_create(id, filename)
+
+    def subimage(left, top, width, height)
+        var new_image = Image()
+        var rslt = wxs_image_subimage(new_image.id, id, left, top, width, height)
+        if rslt != WXS_IMAGE_SUCCESS
+            // no image created so free up the id:
+            control_map[new_image.id] = nil
+            control_next_id = control_next_id - 1
+            return rslt
+        return new_image
+
+    def rescale(width, height, quality)
+        wxs_image_rescale(id, width, height, quality)
+
+    def set_size(w, h)
+        # destroy the image. Create a new one with w, h.
+        wxs_image_init(id, w, h)
+
+    def filter_event_type(event)
+        false
+        
+
+################ OPTIONAL GLWINDOW ######################
+
+class Glcanvas (Canvas):
+
+    def init(parent, x, y, w, h):
+        control_init(parent)
+        canvas_id = id
+        wxs_glcanvas_create(id, parent_id, x, y, w, h)
+
+    def paint(x):
+        return
+
+class Glwindow (Canvas):
+
+    def init(title, x, y, w, h):
+        control_init(nil)
+        canvas_id = id
+        wxs_glwindow_create(id, title, x, y, w, h)
+
+    def paint(x):
+        return
+

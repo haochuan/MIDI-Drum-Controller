@@ -1,0 +1,117 @@
+require "debug"
+require "wxserpent"
+debug_stack_print = t
+require "sched"
+require "midi-io"
+require "Interface1"
+require "Interface2"
+require "oscServer"
+require "oscSender"
+require "oscSenderHelp"
+
+default_window.set_size(0, 0)
+
+thread_id = 0 // use "stopping a thread" pattern
+click_id = 0
+
+time = 0 // global time cursor control
+
+def createBlankScore()
+    var score = array(16)
+    for i = 0 to 16
+        score[i] = array(6)
+    for i = 0 to 16
+        for j = 0 to 6
+            score[i][j] = 0
+    display score
+    return score
+
+// create scores
+currentScore = createBlankScore()
+builtinScore = [[1, 0, 0, 1, 0, 1],
+                [0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 1, 0, 0],
+                [0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 1, 1, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 1, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 1],
+                [0, 0, 0, 1, 1, 0],
+                [0, 0, 0, 0, 1, 0],
+                [0, 0, 1, 1, 0, 0],
+                [0, 1, 0, 0, 0, 1]]
+
+def start(rest ignore)
+    sched_init() // creates vtsched and rtsched
+    midi_out.start(0)
+    rtsched.time_offset = time_get()
+    vtsched.set_bpm(interface1Tempo.value()) // to match slider initial value
+    vtsched.cause(1, nil, 'mainThread', thread_id, 0)
+    vtsched.cause(1, nil, 'playClick', click_id, 0)
+    vtsched.cause(1, nil, 'osc_thread', 0)
+    #rtsched.cause(1, nil, 'sendBack', 0)
+    wxs_timer_start(2, 'timer_callback')
+
+
+def osc_thread(p)
+// receive osc
+    osc_server_poll()
+    the_sched.cause(0.1, nil, 'osc_thread', p + 1)
+def sendBack(p)
+    sendScoreBack()
+    the_sched.cause(5, nil, 'sendBack', p + 1)
+
+def playClick(id, p)
+    midi_out.note_on(0, 56, 0)
+    if id != click_id: // stop AFTER note-off
+        return
+    if interface1Click.value() == true
+        midi_out.note_on(0, 56, interface1volume.value()) 
+    // Here 0.25 means every hi hat is a sixteenth note
+    the_sched.cause(1, nil, 'playClick', id, p + 1)
+
+
+def mainThread(id, p):
+    display "mainThread", p, the_sched.time, time_get()
+    midi_out.note_on(0, 36, 0)
+    midi_out.note_on(0, 38, 0)
+    midi_out.note_on(0, 42, 0)
+    midi_out.note_on(0, 41, 0)
+    midi_out.note_on(0, 47, 0)
+    midi_out.note_on(0, 49, 0)
+    midi_out.note_on(0, 50, 0)
+    midi_out.note_on(0, 51, 0)
+    midi_out.note_on(0, 52, 0)
+    midi_out.note_on(0, 56, 0)
+    if id != thread_id: // stop AFTER note-off
+        return
+    time = time + 1
+    // PLAY CLICK
+    //if interface1Click.value() == true
+    //    midi_out.note_on(0, 56, interface1volume.value()) 
+    // play drum score
+    playDrumScore(p)
+    // update time cursor in interface 2
+    interface2.canvas.update()
+    // Here 0.25 means every hi hat is a sixteenth note
+    the_sched.cause(0.25, nil, 'mainThread', id, p + 1)
+
+def timer_callback()
+    rtsched.poll(time_get())
+
+def set_tempo(tempo)
+    vtsched.start_use() // IMPORTANT!
+    vtsched.set_bpm(tempo)
+    vtsched.finish_use()
+def playDrumScore(p)
+    midi_out.note_on(0, 36, int(int(currentScore[p % 16][5]) * fader[p % 16] * 127))
+    midi_out.note_on(0, 38, int(int(currentScore[p % 16][4]) * fader[p % 16] * 127))
+    midi_out.note_on(0, 42, int(int(currentScore[p % 16][3]) * fader[p % 16] * 127))
+    midi_out.note_on(0, 50, int(int(currentScore[p % 16][2]) * fader[p % 16] * 127))
+    midi_out.note_on(0, 41, int(int(currentScore[p % 16][1]) * fader[p % 16] * 127))
+    midi_out.note_on(0, 49, int(int(currentScore[p % 16][0]) * fader[p % 16] * 127))
+start()

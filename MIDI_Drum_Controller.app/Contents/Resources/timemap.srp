@@ -1,0 +1,33 @@
+# Time_map represent a linear relationship in real-virtual time coodiante.
+# vt_base is the base position in virtual-time axis
+# rt_base is the base position in real-time axis
+# bps is the slope (tempo) of the line, indicates beats/sec
+class Time_map:
+    var vt_base
+    var rt_base
+    var bps
+
+
+    def init(optional vt = 0, optional rt = 0, optional _bps = STOPPED_BPS):
+        vt_base = vt
+        rt_base = rt
+        bps = _bps
+
+
+    def map_from_parent(rt):
+        vt_base + (rt - rt_base) * bps
+
+
+    def map_to_parent(vt):
+        rt_base + (vt - vt_base) / bps
+
+
+    def to_string()
+        "Time_map: vt " + str(vt_base) + " rt " + str(rt_base) +
+        " bps " + str(bps)
+
+
+    def show()
+        display "Time_map", vt_base, rt_base, bps
+
+

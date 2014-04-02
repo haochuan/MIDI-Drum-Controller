@@ -1,0 +1,55 @@
+// files.srp -- file utilities (for Windows)
+
+def has_suffix(name, list)
+    for suffix in list
+        if subseq(name, -len(suffix)) == suffix
+            return true
+    return false
+
+// find all files at implied/path/ excluding exclude_list
+// return list without implied part of path
+def rec_file_list(implied, path, exclude_list, exclude_suffix_list)
+    var list = listdir(implied + "/" + path)
+    var result = []
+    for name in list
+        var full_name = path + "/" + name
+        if path == "."
+            full_name = name
+        if name not in exclude_list and name != "." and name != ".." and 
+           (implied + "/" + full_name) not in exclude_list and 
+           not has_suffix(name, exclude_suffix_list)
+            if isdir(implied + "/" + full_name)
+                var more_files = rec_file_list(implied, full_name,
+                                         exclude_list, exclude_suffix_list)
+                result = result + more_files
+            else
+                result.append(full_name)
+    return result
+
+
+def write_file_list(list, outf)
+    for p in list
+        outf.write(p)
+        outf.write("\n")
+
+
+def save_file_list(list, path)
+    var outf = open(path, "w")
+    if outf
+        write_file_list(list, outf)
+        outf.close()
+        return t
+    return nil
+
+
+def file_list_diffs(list1, list2)
+    var list1_but_not_list2 = []
+    var list2_but_not_list1 = []
+    for file in list1
+        if file not in list2
+            list1_but_not_list2.append(file)
+    for file in list2
+        if file not in list1
+            list2_but_not_list1.append(file)
+    return [list1_but_not_list2, list2_but_not_list1]
+

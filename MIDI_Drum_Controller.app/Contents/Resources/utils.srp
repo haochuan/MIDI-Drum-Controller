@@ -1,0 +1,128 @@
+# utils.srp -- library of (standard?) utility functions
+
+PI = 3.141592653589793
+PI2 = PI * 2
+
+def is_serpent64()
+    1000 is 1000
+
+def is_serpent32()
+    1000 is not 1000
+
+def assert(b)
+    if not b
+        print "ASSERTION FAILED"
+        failed_assertion_now_invokes_the_debugger
+
+
+def float_format(x, d)
+    # return a string with d decimal places
+    x = str(round(x, d))
+    var p = find(x, ".")
+    var n = len(x)
+    if p == -1
+        return pad(x + ".", n + 1 + d, "0")
+    // example: 3.1, p = 1, n = 3, d = 3
+    return pad(x, p + d + 1, "0")
+
+
+def float_places(x, d)
+    # return a string with at least d significant (non-zero) digits
+    # first, compute power of 10 such that 0.1 <= |x| / 10**p < 1.0
+    if x == 0
+        return pad("0.0", 2 + d, "0")
+    var xx = abs(real(x))
+    var p = int(log10(xx)) + 1
+    if xx < 1
+        p = p - 1
+    if p + 1 - d >= 0 // enough significant places left of decimal point
+        return float_format(x, 1)
+    var f = 10 ** p
+    xx = x / f // 0.1 <= xx < 1.0
+    xx = round(xx, d)    // now xx has d significant digits
+    if x < 0
+        xx = -xx
+    xx = str(xx * f)
+    return pad(xx, d + 2 - p, "0")
+    
+    
+
+def irandom(i):
+    # compute random integer from 0 to i-1
+    var r = random() * i
+    int(r)
+
+
+def uniform(low, high)
+    low + random() * (high - low)
+
+
+def interpolate(x1, y1, x2, y2, x)
+    # interpolate between (x1, y1) and (x2, y2)
+    y1+ (y2 - y1) * (x - x1) / (x2 - x1)
+
+
+def change_file_suffix(name, new_suffix):
+    # remove file suffix if any and replace it
+    # new_suffix should not have ".", e.g. use "wav", not ".wav"
+    var last_pos = len(name)
+    var pos = find(name, ".")
+    while pos >= 0:
+        last_pos = pos
+        pos = find(name, ".", last_pos + 1)
+    if pos < 0:
+        pos = len(name)
+    subseq(name, 0, last_pos) + ("." + new_suffix)
+
+
+def file_from_path(path, optional return_path):
+    # remove file from a path, e.g. get "foo.txt" from "c:\rbd\foo.txt"
+    # algorithm: look backward from end to first occurrence of "\/:"
+    # note that if the file name contains one of "\/:", then this 
+    # function will fail by returning only a partial file name
+    # if return_path is non-null, returns the file's directory
+    # rather than the file name
+    var pos = len(path) - 1
+    while pos >= 0:
+        // (note that backslash has to be quoted)
+        if find("\\/:", path[pos]) > -1:
+            # we found a path separator at pos
+            if return_path
+                return subseq(path, 0, pos + 1)
+            return subseq(path, pos + 1)
+        pos = pos - 1
+    # no separator was found
+    return path
+
+
+def pad(s, len, optional char = " ") // pad string with char to len
+    if char == " " and len > len(s):
+        // fast case using set_len
+        s = s.set_len(len)
+    else:
+        while len(s) < len
+            s = s + char
+    return s
+
+
+// Argmax -- find the value of x that maximizes f(x)
+//     How to use argmax functions:
+//     var argmax = Argmax()
+//     for x in all_possible_values_of_x
+//         argmax.item(x, f(x))
+//     print argmax.result
+//     note that nil is not a valid value for x
+//     if two values of x tie for best, the first is selected
+//
+//     you can reuse an argmax object after argmax.reset()
+//
+class Argmax
+    var result, y
+
+    def item(arg, rating)
+        if not y or rating > y
+            result = arg
+            y = rating
+
+    def reset()
+        y = nil

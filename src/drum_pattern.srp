@@ -1,0 +1,32 @@
+require "debug"
+require "midi-io"
+require "strparse"
+
+# Load and Play drum pattern from a *.txt file
+
+# Return an array of fields from an input string
+def getPatternFromText(string)
+    var sp = String_parse(string)
+    var result = [] // create empty array to accumulate results
+    sp.skip_space()
+    var field = sp.get_nonspace() // parse out a field
+    while field != "" // get all the fields
+        result.append(field) // append each field to array
+        field = sp.get_nonspace()
+    return result
+
+def loadDrumScore()
+    var score = []
+    f = open("score.txt", "r")
+    score.append(getPatternFromText(f.read()))
+    return score
+
+def playDrumScore(p)
+    midi_out.note_on(0, 36, int(int(currentScore[p % 16][5]) * 100))
+    midi_out.note_on(0, 38, int(int(currentScore[p % 16][4]) * 100))
+    midi_out.note_on(0, 42, int(int(currentScore[p % 16][3]) * 100))
+    midi_out.note_on(0, 50, int(int(currentScore[p % 16][2]) * 100))
+    midi_out.note_on(0, 41, int(int(currentScore[p % 16][1]) * 100))
+    midi_out.note_on(0, 49, int(int(currentScore[p % 16][0]) * 100))
+
+

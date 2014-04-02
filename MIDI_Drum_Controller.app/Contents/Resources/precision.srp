@@ -1,0 +1,28 @@
+# precision -- round to a given number of digits of precision
+#
+# this is different from round, which leaves a given number of digits after the decimal point
+#
+# example: precision(123.456, 2) => 120, round(123.456, 2) => 123.46
+#
+# algorithm: use log to place value in the open interval (-1, +1)
+#            use round
+#            convert back to original range
+
+
+def precision(x, d):
+    var sign = 1
+    if x < 0:
+        sign = -1
+    x = x * sign
+    var exponent = int(log10(x)) + 1
+    # this is sloppy; should return zero when computation actually
+    # underflows to a nan...
+    if exponent < -1000:
+        return 0.0
+    if x < 1: # correct for rounding of negative numbers
+        exponent = exponent - 1
+    var scale = 10 ** exponent
+    x = x / scale
+    x = round(x, d)
+    sign * x * (10 ** exponent)
+

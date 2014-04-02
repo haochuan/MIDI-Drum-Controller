@@ -1,0 +1,111 @@
+require "debug"
+require "utils"
+require "wxserpent"
+
+class Interface2
+    var interface
+    var canvas
+    
+    def init()
+        interface = Window("Drum Pattern", 20, 360, 800, 340)
+        canvas = My_canvas2(interface.id, 0, 0, 800, 300)
+    //--------------Canvas-------------
+    class My_canvas2 (Canvas)
+    
+        def init(parent, x, y, w, h)
+            super.init(parent, x, y, w, h)
+    
+        def paint(x):
+            clear("white")
+            // Backgroud
+            set_pen_rgb(47, 47, 47)
+            set_pen_width(1)
+            set_brush_rgb(47, 47, 47)
+            draw_rectangle(0, 0, 800, 300)
+            // draw the drum pad
+            for i = 0 to 6 by 1
+                for j = 0 to 16 by 1
+                    if currentScore[j][i] == 0
+                        set_pen_rgb(202, 199, 198)
+                        set_pen_width(1)
+                        set_brush_rgb(202, 199, 198, 0)
+                        draw_rectangle(j * 30 + j * 10 + 120, i * 30 + i * 10 + 60, 30, 30)
+                    else
+                        set_brush_rgb(241, 31, 71, 100)
+                        draw_rectangle(j * 30 + j * 10 + 120, i * 30 + i * 10 + 60, 30, 30)
+            for i = 0 to 16
+                set_pen_rgb(202, 199, 198)
+                set_pen_width(2)
+                set_brush_rgb(255, 252, 38, 0)
+                draw_ellipse(i * 30 + i * 10 + 120, 15, 30, 30)
+            // some text
+            set_text_rgb(255, 255, 255)
+            set_font(16, WXS_FONT_ROMAN, WXS_FONT_NORMAL, WXS_FONT_NORMAL, false, "")
+            draw_text(131, 23, "1")
+            draw_text(171, 23, "2")
+            draw_text(211, 23, "3")
+            draw_text(251, 23, "4")
+            draw_text(291, 23, "5")
+            draw_text(331, 23, "6")
+            draw_text(371, 23, "7")
+            draw_text(411, 23, "8")
+            draw_text(451, 23, "9")
+            draw_text(487, 23, "10")
+            draw_text(527, 23, "11")
+            draw_text(567, 23, "12")
+            draw_text(607, 23, "13")
+            draw_text(647, 23, "14")
+            draw_text(687, 23, "15")
+            draw_text(727, 23, "16")
+
+            set_font(20, WXS_FONT_ROMAN, WXS_FONT_NORMAL, WXS_FONT_NORMAL, false, "")
+
+            draw_text(50, 65, "Crash")
+            draw_text(50, 105, "Tom 2")
+            draw_text(50, 145, "Tom 1")
+            draw_text(50, 185, "Hi-Hat")
+            draw_text(50, 225, "Snare")
+            draw_text(50, 265, "Kick")
+
+            // update the cursor
+            set_pen_rgb(255, 252, 38)
+            set_pen_width(1)
+            set_brush_rgb(255, 252, 38)
+            draw_ellipse((time % 16) * 30 + (time % 16) * 10 + 120, 15, 30, 30)
+            return
+
+        def handle(event, x, y)
+            if event == WXS_LEFT_DOWN
+                for i = 0 to 6
+                    for j = 0 to 16
+                        if x >= j * 30 + j * 10 + 120 and x < (j + 1) * 30 + (j + 1) * 10 + 120
+                            if y >= i * 30 + i * 10 + 60 and y < (i + 1) * 30 + (i + 1) * 10 + 60
+                               if currentScore[j][i] == 0
+                                   currentScore[j][i] = 1
+                               else
+                                   currentScore[j][i] = 0
+    
+    
+            refresh(true)
+
+        def update()
+            refresh(true)
+
+// Create Interface 2
+interface2 = Interface2()
+// faders for 16 beats
+fader = array(16)
+for i = 0 to 16
+    fader[i] = 0.7
+
+    
+
+
+
+
+
+
+
+
+
+

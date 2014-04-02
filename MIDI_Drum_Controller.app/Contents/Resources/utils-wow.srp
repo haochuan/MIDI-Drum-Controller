@@ -1,0 +1,10 @@
+# utils.srp -- library of (standard?) utility functions
+
+def irandom(i, optional j):
+    # compute random integer from 0 to i-1 or i to j-1
+    if not j: // then we want from 0 to i-1
+        j = i // now we want from 0 to j-1
+        i = 0 // now we want from i to j-1
+    var r = i + random() * (j - i)
+    int(r)
+

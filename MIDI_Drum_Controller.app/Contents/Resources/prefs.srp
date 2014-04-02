@@ -1,0 +1,208 @@
+# prefs.srp -- preferences system
+#
+# Roger B. Dannenberg
+# September 2013
+
+# Prefs is a class for preference management
+#   This is NOT compatible with Java or OS preference systems
+# methods are:
+#   Prefs(application_name) - Opens and reads preference file for
+#       application named by string application_name. On OS X, the
+#       preference file is in
+#            ~/Library/Application Support/application_name
+#   set(attribute, value) -- set attribute (a symbol) to
+#       any Serpent value that can be printed. Arrays are OK too.
+#   get(attribute) -- get the value of an attribute, returns
+#       nil if not set
+#   save() -- write the preference data
+#
+
+class Prefs:
+    var file_name
+    var prefs
+
+    def init(name):
+        # name is either:
+        #   - a full path to a directory: open prefs.txt in the directory
+        #   - a full path to a preference file (usually prefs.txt)
+        #   - an application name (not a full path): an OS-dependent lookup is
+        #        performed
+        # In OS X, the file is in ~/Library/Application Support/<name>/prefs.txt
+        #    where "~" is derived from the current directory (it is assumed that
+        #    the current directory is within the current user's home directory).
+        prefs = {}
+        var cwd = getcwd()
+        var os_type = get_os()
+        if len(name) < 2:
+            print "error in Prefs::init: name is too short - " + name
+            return 
+        // do we have an absolute path?
+        if name[0] == "/" or name[1] == ":"
+            file_name = name
+            if isdir(file_name):
+                file_name = file_name + "/prefs.txt"
+        elif os_type == 'mach':
+            osx_init(name, cwd)
+        elif os_type == 'linux':
+            linux_init(name, cwd)
+        elif os_type == 'windows':
+            windows_init(name, cwd)
+        else:
+            print "Prefs is not compatible (yet) with this operating system"
+            return
+        // now open the file, creating if necessary
+        var file = open(file_name, "r")
+        if not file:
+            file = open(file_name, "w")
+            if not file:
+                print "Prefs cannot write ", file_name
+                return
+            file.close()
+            file = open(file_name, "r")
+            if not file:
+                print "Prefs cannot open ", file_name
+        // read the preferences
+        var attribute = file.readvalue()
+        while attribute:
+            var value = read_value(file)
+            prefs[attribute] = value
+            attribute = file.readvalue()
+        file.close()
+
+
+    def read_value(file):
+        var result = file.readvalue()
+        if result == '[':
+            result = []
+            value = read_value(file)
+            while value != ']':
+                result.append(value)
+                value = read_value(file)
+        return result
+
+
+    def osx_init(name, cwd):
+        # OS X specific code to initialize file_name, the
+        #    path for the file containing preference data
+        var homes = unix_homes(cwd)
+        for home in homes:
+            var path = home + "/Library/Application Support/" + name
+            if not isdir(path):
+                mkdir(path)
+            if isdir(path):
+                file_name = path + "/prefs.txt"
+                return
+        print "Error: could not make "; name; "/prefs.txt in "; homes
+        file_name = nil
+
+            
+    def linux_init(name, cwd):
+        # Linux-specific code to initialize file_name, the
+        #    path for the file containing preference data
+        # Try to put the file in ~/.name
+        // find the home directory
+        var homes = unix_homes(cwd)
+        // now we've found up to 6 candidates for home directories
+        // try to read or make preferences in each one until it works
+        for home in homes:
+            var path = home + "/." + name
+            if not isdir(path):
+                mkdir(path)
+            if isdir(path):
+                file_name = path + "/prefs.txt"
+                return
+        print "Error: could not make ."; name; "/prefs.txt in "; homes
+        file_name = nil
+
+
+    def unix_homes(cwd): // get a list of candidates for home directories
+        var homes = []
+        var home = getenv("HOME")
+        if isdir(home):
+            homes.append(home)
+        var user = getenv("USER")
+        for prefix in ["/usr/", "/home/", "/Users/"]:
+            home = "/usr/" + user
+            if isdir(home):
+                homes.append(home)
+        // last resort: try to get home directory from cwd
+        var home_len = find(cwd, "/", 1) // loc of 2nd slash
+        home_len = find(cwd, "/", home_len + 1) // loc of 3rd slash
+        home = subseq(cwd, 0, home_len)
+        homes.append(home)
+        // return the list, e.g. ["/usr/rbd", "/usr/rbd", "/usr/bin"]
+        return homes
+
+    def windows_init(name, cwd):
+        # Windows-specific code to initialize file_name, the
+        #    path for the file containing preference data
+        // find temp directory
+        var temp_path = getenv("TEMP")
+        if not temp_path or len(temp_path) < 1:
+            temp_path = getenv("TMP")
+            if not temp_path or len(temp_path) < 1:
+                temp_path = cwd // try current directory
+        var path = temp_path + "\\" + name
+        if not isdir(path):
+            mkdir(path)
+        if not isdir(path):
+            print "Error: could not make", path; "\prefs.txt"
+            file_name = nil
+            return
+        file_name = path + "/prefs.txt"
+
+            
+    def set(attribute, value):
+        # set preferences corresponding to attribute (a symbol)
+        #     value should be printable and readable with readvalue()
+        prefs[attribute] = value
+
+    def get(attribute, optional default):
+        # get preference corresponding to attribute (a symbol)
+        prefs.get(attribute, default)
+
+    def save():
+        # save the preferences. Each line is a key and value.
+        # special case: arrays are saved as [ value value ... ]
+        var pf = open(file_name, "w")
+        if not pf:
+            print "Prefs::save -- could not open file for writing"
+            return false
+        for attr in prefs.keys():
+            pf.write(repr(attr))
+            pf.write(" ")
+            write_value(pf, prefs[attr])
+            pf.write("\n")
+        pf.close()
+        return true
+
+    def write_value(file, value):
+        # write a value
+        if isarray(value):
+            file.write("[ ")
+            for val in value:
+                write_value(file, val)
+                file.write(" ")
+            file.write("]")
+        else:
+            file.write(repr(value))
+
+# test code
+def prefs_test():
+    prefs = Prefs("+prefs-test+") // use an unusual name to avoid clobbering anything
+    prefs.set('foo', "This is a string value")
+    prefs.set('bar', 123456)
+    prefs.set('baz', 789.0123)
+    prefs.set('array', [1, 2, 3, 4, "5", "6", ["The End"]])
+    prefs.set('sym', 'a symbol value')
+    prefs.save()
+
+    prefs = Prefs("+prefs-test+")
+    display "prefs", prefs.get('foo')
+    display "prefs", prefs.get('bar')
+    display "prefs", prefs.get('baz')
+    display "prefs", prefs.get('array')
+    display "prefs", prefs.get('sym')
+
+# run the test:
+# prefs_test()

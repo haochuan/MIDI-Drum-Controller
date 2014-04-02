@@ -1,0 +1,246 @@
+require "debug"
+require "utils"
+require "wxserpent"
+
+temp_volume = 0
+
+class Interface1
+    var interface
+    var canvas
+
+    def init()
+        interface = Window("Drum Pad", 20, 20, 800, 340)
+        canvas = My_canvas(interface.id, 0, 0, 800, 300)
+        draw()
+
+    //--------------Canvas-------------
+    class My_canvas (Canvas)
+        def init(parent, x, y, w, h):
+            super.init(parent, x, y, w, h)
+    
+        def paint(x):
+            clear("white")
+            // Backgroud
+            set_pen_rgb(47, 47, 47)
+            set_pen_width(1)
+            set_brush_rgb(47, 47, 47)
+            draw_rectangle(0, 0, 800, 300)
+            // draw the drum pad (blue pad)
+            set_pen_rgb(108, 161, 234)
+            set_pen_width(1)
+            set_brush_rgb(108, 161, 234)
+            for i = 0 to 3 by 1
+                for j = 0 to 3 by 1
+                    draw_rectangle(j * 100 + j * 20 + 400, i * 80 + i * 10 + 20, 100, 80) 
+            set_pen_rgb(234, 45, 58)
+            set_pen_width(1)
+            set_brush_rgb(234, 45, 58)
+            for i = 0 to 3
+                draw_rectangle(240, i * 80 + i * 10 + 20, 100, 80)   
+            //Some Text
+            set_text_rgb(255, 255, 255)
+            set_font(20, WXS_FONT_ROMAN, WXS_FONT_NORMAL, WXS_FONT_NORMAL, false, "")
+            draw_text(15, 10, "Volume")
+            draw_text(20, 240, "Mute")
+            draw_text(115, 10, "Tempo")
+            draw_text(120, 240, "Click")
+            return
+
+    def draw()
+        display "draw"
+        //--------------VERTICAL SLIDER-------------
+        interface1volume = Slider(1, 0, 127, 100,
+                                   20, 40, 50, 180) 
+        #interface1volume.method = 'interface1Volume_hit'
+
+        interface1Tempo = Slider(1, 40, 180, 120,
+                                   120, 40, 50, 180, nil) 
+        interface1Tempo.method = 'interface1Tempo_hit'
+
+
+        //---------------CHECKBOX-----------------
+        interface1Mute = Checkbox(1, "",
+                               35, 260, 100, 25)
+        interface1Mute.method = 'interface1Mute_hit'
+
+        interface1Click = Checkbox(1, "",
+                               135, 260, 100, 25)
+        #interface1Click.method = 'interface1Click_hit'
+
+
+
+        //---------------BUTTON-----------------
+        drumNoteKick = Button(1, "Kick", 
+                           410, 230, 80, 25)
+        drumNoteKick.method = 'drumNoteKick_hit'
+
+
+        //----------------------------------
+
+        drumNoteSnare = Button(1, "Snare", 
+                           530, 230, 80, 25)
+        drumNoteSnare.method = 'drumNoteSnare_hit'
+
+
+        //----------------------------------
+
+        drumNoteHh = Button(1, "Hi-Hat", 
+                           650, 230, 80, 25)
+        drumNoteHh.method = 'drumNoteHh_hit'
+
+
+        //----------------------------------
+
+        drumNoteTom1 = Button(1, "Tom 1", 
+                           410, 140, 80, 25)
+        drumNoteTom1.method = 'drumNoteTom1_hit'
+
+
+
+        //----------------------------------
+
+        drumNoteTom2 = Button(1, "Tom 2", 
+                           530, 140, 80, 25)
+        drumNoteTom2.method = 'drumNoteTom2_hit'
+
+
+
+        //----------------------------------
+
+        drumNoteTom3 = Button(1, "Tom 3", 
+                           650, 140, 80, 25)
+        drumNoteTom3.method = 'drumNoteTom3_hit'
+
+
+
+        //----------------------------------
+
+        drumNoteCrash1 = Button(1, "Crash 1", 
+                           410, 50, 80, 25)
+        drumNoteCrash1.method = 'drumNoteCrash1_hit'
+
+
+        //----------------------------------
+
+        drumNoteCrash2 = Button(1, "Crash 2", 
+                           530, 50, 80, 25)
+        drumNoteCrash2.method = 'drumNoteCrash2_hit'
+
+
+        //----------------------------------
+        drumNoteCrash3 = Button(1, "Crash 3", 
+                           650, 50, 80, 25)
+        drumNoteCrash3.method = 'drumNoteCrash3_hit'
+
+        //----------------------------------
+
+        interface1Random = Button(1, "Random", 
+                           250, 50, 80, 25)
+        interface1Random.method = 'interface1Random_hit'
+
+        //----------------------------------
+        interface1Clear = Button(1, "Clear", 
+                           250, 140, 80, 25)
+        interface1Clear.method = 'interface1Clear_hit'
+
+        //----------------------------------
+        interface1Score = Button(1, "Load", 
+                           250, 230, 80, 25)
+        interface1Score.method = 'interface1Score_hit'
+
+        //----------------------------------
+
+
+// Create Interface 1
+interface1 = Interface1()
+    
+// Some function for GUI
+#def interface1Volume_hit(obj, event, x, y)
+#    return
+
+def interface1Mute_hit(obj, event, x, y)
+    var temp_volume
+    if x == true
+        temp_volume = interface1volume.value()
+        interface1volume.set_value(0)
+    else
+        interface1volume.set_value(temp_volume)
+
+def interface1Tempo_hit(obj, event, x, y)
+    vtsched.start_use() // IMPORTANT!
+    vtsched.set_bpm(x)
+    vtsched.finish_use()
+
+
+# def interface1Click_hit(obj, event, x, y)
+
+
+def interface1Random_hit(obj, event, x, y)
+    for i = 0 to 16
+        for j = 0 to 6
+            if random() * 10 > 8
+                currentScore[i][j] = 1 
+            else 
+                currentScore[i][j] = 0
+    sendFaderRandom()
+
+def interface1Clear_hit(obj, event, x, y)
+    currentScore = createBlankScore()
+
+def interface1Score_hit(obj, event, x, y)
+    for i = 0 to 16
+        fader[i] = 0.7
+    sendFader(0.7)
+    currentScore =  builtinScore
+
+
+def drumNoteKick_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 36, interface1volume.value())
+    vtsched.finish_use()
+
+
+def drumNoteSnare_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 38, interface1volume.value())
+    vtsched.finish_use()
+
+def drumNoteHh_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 42, interface1volume.value())
+    vtsched.finish_use()
+
+def drumNoteTom1_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 50, interface1volume.value())
+    vtsched.finish_use()
+
+def drumNoteTom2_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 47, interface1volume.value())
+    vtsched.finish_use()
+
+def drumNoteTom3_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 41, interface1volume.value())
+    vtsched.finish_use()
+
+def drumNoteCrash1_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 49, interface1volume.value())
+    vtsched.finish_use()
+ 
+def drumNoteCrash2_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 51, interface1volume.value())
+    vtsched.finish_use()
+
+def drumNoteCrash3_hit(rest ignore)
+    vtsched.start_use()
+    midi_out.note_on(0, 52, interface1volume.value())
+    vtsched.finish_use()
+
+//----------------------------------
+
+    
+    

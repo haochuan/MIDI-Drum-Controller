@@ -1,0 +1,37 @@
+# Compute the median of points or a running median over a stream of points
+
+require "debug"
+require "vectors"
+
+class Median:
+    var data // an array of points to compute median of
+    var loc  // location of the oldest point (for running median)
+    var size // size of data
+
+    def init(n)
+        size = n
+        data = vec_zeros(n)
+        loc = 0
+
+    def new_point(x)
+        data[loc] = x
+        loc = rem(loc + 1, size)
+
+    def get_median()
+        data.sort()
+        if size == 0
+            return 0
+        var mid = idiv(size, 2)
+        if (size | 1) == 1
+            return (data[mid] + data[mid + 1]) / 2
+        return data[mid]
+
+
+def vec_median(v)
+    # compute the median of a vector v
+    var n = len(v)
+    var median = Median(n)
+    for i = 0 to n
+        median.new_point(v[i])
+    return median.get_median()
+

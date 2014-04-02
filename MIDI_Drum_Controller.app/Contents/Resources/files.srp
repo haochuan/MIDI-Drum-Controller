@@ -1,0 +1,241 @@
+# find and manipulate files
+#
+# Roger B. Dannenberg
+# Nov 2010
+
+require "debug"
+require "stredit"
+
+// return the file extension, e.g. file_extension("foo.cpp") -> ".cpp"
+// If there is no ".", then the extension is the empty string ""
+//
+def file_extension(path)
+    path = path.reverse()
+    var loc = find(path, ".")
+    var ext = subseq(path, 0, loc + 1)
+    ext.reverse()
+    
+
+// path_parent -- get parent of a path
+//
+def path_parent(path)
+    if path == "" or path.last() != "/"
+        path = path + "/"
+    path = path.reverse()
+    var loc = find(path, "/", 1)
+    if loc >= 0
+        return subseq(path, loc).reverse()
+    return "" // error, no parent (we must have been at the root)
+        
+
+def path_escape(path)
+    var loc = find(path, " ")
+    while loc >= 0
+        path = subseq(path, 0, loc) + "\\" + subseq(path, loc)
+        loc = find(path, " ", loc + 2)
+    path
+        
+
+// convert a relative path to an absolute path
+//
+def path_rel_to_abs(path)
+    if path == ""
+        return getcwd()
+    if path.last() != "/"
+        path = path + "/"
+    if path[0] == "/"
+        return path
+    var base = getcwd()
+    var path2 = path
+    while true
+        if find(path2, "./", 0, 2) == 0
+            path = subseq(path2, 2)
+        elif find(path2, "../", 0, 3) == 0
+            path2 = subseq(path2, 3)
+            base = path_parent(base)
+            display "after ../", path2, base
+        elif base != "" // no error
+            return base + path2
+        else
+            return "" // indicates error
+
+
+class File_set:
+    var paths
+
+    def init(optional paths_)
+        if paths_
+            paths = paths_
+        else
+            paths = []
+
+    // strip_prefix removes a prefix from each element of paths
+    // the prefix is specified in the same way as the root in init(),
+    // i.e. relative to the current path
+    def strip_prefix(root)
+        root = path_rel_to_abs(root)
+        for path at i in paths
+            if find(path, root) != 0:
+                print "ERROR: prefix", root, "not found in path", path
+            else:
+                paths[i] = subseq(path, len(root))
+
+    def prepend(prefix)
+        for path at i in paths
+            paths[i] = prefix + path
+
+    // write_script generates a shell script with one line per file
+    // the line is obtained by modifying patterns in the template as follows:
+    //  $$ - substitute the full path of the file for each "$$" that occurs
+    //       in the template
+    // if filename is a string path, a file is created and closed, 
+    // if filename is a file, the file is written to and left open
+    def write_script(filename, template)
+        var outf = filename
+        if type(outf) == 'String'
+            outf = open(filename, "w")
+        var editor = String_edit()
+        for path in paths
+            editor.edit_string(template)
+            editor.global_replace("$$", path)
+            outf.write(editor.get_all())
+            outf.write("\n")
+        if type(outf) == 'File':
+            outf.close()
+
+    def add_path(p)
+        paths.append(p)
+
+    // compute files in this set that are not in fs2
+    def difference(fs2)
+        var result = File_set()
+        var paths2 = fs2.paths
+        for path in paths
+            if not fs2.contains(path)
+                result.add_path(path)
+        result
+
+    def contains(path)
+        paths.index(path) != -1
+
+
+class Find_files (File_set):
+
+    def init(root): // search for all files starting at root
+        super.init()
+        if root.last() != "/"
+            root = root + "/"
+        root = path_rel_to_abs(root)
+        find_files_in(root)
+
+    // predicate to ignore files (not directories) by name
+    // default is to ignore hidden files and emacs backup files
+    def ignore_file(file)
+        file == "" or file[0] == "." or file.last() == "~" or
+        (file[0] == "#" and file.last() == "#")
+
+
+    // predicate to ignore files or directories by full path
+    // this is called before searching directories, so if you
+    // return true (ignore) on a directory, all contents are ignored
+    // default is to not ignore any paths
+    // ".." and "." are ALWAYS ignored (ignore_paths) is not called
+    // on directories ".." or "."
+    def ignore_path(path)
+        false
+
+    def find_files_in(path)
+        var contents = listdir(path)
+        for file in contents
+            var newpath = path + file
+            if file == "." or file == ".." or ignore_path(newpath)
+                nil // ignore
+            elif isdir(newpath)
+                find_files_in(newpath + "/")
+            elif not ignore_file(file)
+                paths.append(newpath)
+
+
+class Find_extensions (Find_files)
+    # a class that finds all files with a given extension (e.g. ".h files")
+    var ext
+
+    def init(root, ext_)
+        ext = ext_
+        if (len(ext) == 0 or ext[0] != ".")
+            ext = "." + ext // make sure there is a leading "."
+        super.init(root)
+
+    def ignore_file(file)
+        file_extension(file) != ext
+
+
+// find files that differ. For speed (in big directories), we only
+// use Serpent to find the files and check for new or deleted files
+// and write a script to run cmp on all common files
+//
+// returns: [added, deleted, changed], a list of three lists of
+// full paths
+//
+def find_differences(path1, path2, script_name, verbose)
+    var files1 = Find_files(path1)
+    if path1.last() != "/"
+        path1 = path1 + "/"
+    files1.strip_prefix(path1)
+    if verbose
+        print len(files1.paths), "in", path1
+
+    var files2 = Find_files(path2)
+    if path2.last() != "/"
+        path2 = path2 + "/"
+    files2.strip_prefix(path2)
+    if verbose
+        print len(files2.paths), "in", path2
+
+    var do_not_compare = []
+    var outf = open(script_name + ".sh", "w")
+
+    // look for all files1 in files2
+    var deleted = files1.difference(files2)
+
+    // look for all files2 in files1
+    var added = files2.difference(files1)
+
+    for file in files1.paths
+        if not (added.contains(file) or deleted.contains(file))
+            outf.write("cmp " + path_escape(path1 + file) + " " +
+                       path_escape(path2 + file) + "\n")
+    outf.close()
+    var cmd = "sh " + script_name + ".sh > " + script_name + ".out" + "\n"
+    var rslt = system(cmd)
+    if rslt < 0
+        display "ERROR running compares", cmd, rslt
+        return nil
+    // read the results from script_name.out
+    var inf = open(script_name + ".out", "r")
+    if not inf
+        print "ERROR: could not open", script_name + ".out"
+        return nil
+    var changed = []
+    var line = inf.readline()
+    var striplen = len(path1)
+    if path1.last() != "/"
+        striplen = striplen + 1
+    while line
+        loc = find(line, " differ: ")
+        if loc > 0:
+            loc = find(line, " ")
+            changed.append(subseq(line, striplen, loc))
+        else
+            print "ERROR: input ignored -", line;
+        line = inf.readline()
+    return [added.paths, deleted.paths, changed]
+
+
+// example:
+def test()
+    var ff = Find_files(".")
+    print ff.paths
+    ff.write_script("test_script.sh", "ls $$; ls -l $$")
+    
+

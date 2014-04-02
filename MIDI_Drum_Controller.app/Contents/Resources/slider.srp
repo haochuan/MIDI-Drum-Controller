@@ -1,0 +1,176 @@
+# slider.srp -- implementation of labeled sliders with number display
+
+require "utils" // for interpolate()
+
+log_of_10_over_20 = log(10.0) / 20.0
+
+def slider_to_db(x)
+    # x is integer from 0 to 1000
+    # result is dB -120 to 0
+    # from 100 to 1000, output is (x/1000)^2, which goes 0.01 to 1
+    # below 100, output is linear from 0 to 0.01, so 1 maps to 0.0001 = -80dB
+    # rather than -infinity, 0 maps to -120dB
+    var db
+    if x == 0
+        db = -120.0
+    elif x < 100: // do linear_to_db conversion
+        db = log(x * 0.0001) / log_of_10_over_20
+    else
+        db = log(x * x / 1000000) / log_of_10_over_20
+    return db
+
+
+def db_to_slider(db)
+    # reverse mapping of slider_to_db
+    // db-to-linear conversion
+    var x = exp(log_of_10_over_20 * db)
+    if x > 1
+        x = 1000
+    elif x < 0.01
+        x = x * 100
+    else
+        x = sqrt(x) * 1000
+    return round(x, 0)
+
+def slider_to_pan(x)
+    # x is integer from 0 to 1000
+    # results is float pan from 0 to 1 (0.5 is "middle")
+    x / 1000
+
+
+def pan_to_slider(x)
+    # x is float pan from 0 to 1.0
+    # result is integer from 0 to 1000
+    round(x * 1000, 0)
+
+LS_NUMBER_WIDTH = 60
+
+// Labeled_slider is a [label, slider, number_display] configuration
+// The slider can be mapped to number in a linear, exponential, integer, or 
+// db style. The db style is recommended for faders and has a non-linear
+// range of -120dB to 0dB. The integer style means values are integers.
+
+class Labeled_slider
+    var label
+    var slider
+    var number
+    var mapping
+    var min_value
+    var max_value
+    var value
+    var target
+    var method
+    var x, y, w, h, labelwidth
+
+    def init(win, lab, x_, y_, w_, h_, labelwidth_, min, max, default, map) 
+        x = x_
+        y = y_
+        w = w_
+        h = h_
+        labelwidth = labelwidth_
+        label = Statictext(win, lab, x, y, labelwidth, h)
+        var start
+        min_value = real(min)
+        max_value = real(max)
+        value = default
+        mapping = map
+        if mapping != 'linear' and mapping != 'exponential' and 
+           mapping != 'db' and mapping != 'integer'
+            print "WARNING: unknown mapping in Labled_slider, using linear"
+            mapping = 'linear'
+        if mapping == 'exponential'
+            min_value = log(min_value)
+            max_value = log(max_value)
+            start = int(interpolate(min_value, 0, max_value, 1000,
+                                    log(real(default))))
+        elif mapping == 'db'
+            start = db_to_slider(default)
+        elif mapping == 'linear' or mapping == 'integer'
+            start = int(interpolate(min, 0, max, 1000, default))
+        else
+            print "ERROR in Labeled_slider(): mapping =", mapping
+
+        slider = Slider(win, 0, 1000, start, x + labelwidth, y, 
+                        w - labelwidth - LS_NUMBER_WIDTH - 5, h)
+        slider.target = this
+        slider.method = 'slider_changed'
+        number = Statictext(win, "", x + w - LS_NUMBER_WIDTH, y, 
+                            LS_NUMBER_WIDTH, h)
+        update_number()
+
+    def set_position(x, y)
+        label.set_position(x, y)
+        slider.set_position(x + labelwidth, y)
+        number.set_position(x + w - LS_NUMBER_WIDTH, y)
+
+    def get_height()
+        h
+
+    def get_width()
+        w
+
+    def get_value()
+        value
+
+    def slider_changed(source, event, x, y)
+        // display "slider_changed", x, min_value, max_value, mapping
+        if mapping == 'linear' or mapping == 'integer'
+            // display "mapping is linear"
+            value = interpolate(0, min_value, 1000, max_value, x)
+            if mapping == 'integer'
+                value = round(value)
+        elif mapping == 'db'
+            value = slider_to_db(x)
+        elif mapping == 'exponential'
+            value = exp(interpolate(0, min_value, 1000, max_value, x))
+        // display "sc", value
+        update_number()
+        if method
+            if target
+                send(target, method, this, value)
+            else
+                funcall(method, this, value)
+
+    def update_number()
+        // display "update_number", value, number
+        var s
+        if mapping == 'integer'
+            s = str(round(value))
+        else
+            s = float_places(value, 2)
+        number.set_string(s)
+
+    def set_range(minv, maxv, default, map)
+        min_value = minv
+        max_value = maxv
+        value = default
+        mapping = map
+        if mapping == 'exponential'
+            min_value = log(min_value)
+            max_value = log(max_value)
+            start = int(interpolate(min_value, 0, max_value, 1000,
+                                    log(real(default))))
+        elif mapping == 'db'
+            start = db_to_slider(default)
+        elif mapping == 'linear' or mapping == 'integer'
+            start = int(interpolate(min_value, 0, max_value, 1000, default))
+        else
+            print "ERROR in Labeled_slider(): mapping =", mapping
+
+        slider.set_value(start)
+        update_number()
+        
+    def set_value(x)
+        value = x
+        if mapping == 'linear' or mapping == 'integer'
+            x = round(interpolate(min_value, 0, max_value, 1000, x), 0)
+        elif mapping == 'exponential'
+            x = round(interpolate(min_value, 0, max_value, 1000, 
+                                  log(real(x))), 0)
+        elif mapping == 'db'
+            x = db_to_slider(x)
+        slider.set_value(x)
+        update_number()
+
+    def set_label(s)
+        label.set_string(s)

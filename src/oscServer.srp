@@ -1,0 +1,250 @@
+require "debug"
+require "utils"
+require "sched"
+require "midi-io"
+
+osc_enabled = t
+
+osc_server_init("8001", t)
+
+// for interface 1
+
+osc_server_method("/1/push1", "f", nil, 'kick')
+osc_server_method("/1/push2", "f", nil, 'snare')
+osc_server_method("/1/push3", "f", nil, 'hh')
+osc_server_method("/1/push4", "f", nil, 'tom1')
+osc_server_method("/1/push5", "f", nil, 'tom2')
+osc_server_method("/1/push6", "f", nil, 'tom3')
+osc_server_method("/1/push7", "f", nil, 'crash1')
+osc_server_method("/1/push8", "f", nil, 'crash2')
+osc_server_method("/1/push9", "f", nil, 'crash3')
+osc_server_method("/1/fader1", "f", nil, 'volume')
+osc_server_method("/1/toggle1", "f", nil, 'mute')
+osc_server_method("/1/fader2", "f", nil, 'tempo')
+osc_server_method("/1/toggle2", "f", nil, 'click')
+osc_server_method("/1/push10", "f", nil, 'load')
+osc_server_method("/1/push11", "f", nil, 'clear')
+osc_server_method("/1/push12", "f", nil, 'randomm')
+
+// for interface 2
+
+osc_server_method("/2/multitoggle/1/1", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/2", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/3", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/4", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/5", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/6", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/7", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/8", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/9", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/10", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/11", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/12", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/13", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/14", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/15", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/1/16", "f", nil, 'multitoggle')
+
+osc_server_method("/2/multitoggle/2/1", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/2", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/3", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/4", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/5", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/6", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/7", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/8", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/9", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/10", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/11", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/12", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/13", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/14", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/15", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/2/16", "f", nil, 'multitoggle')
+
+osc_server_method("/2/multitoggle/3/1", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/2", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/3", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/4", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/5", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/6", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/7", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/8", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/9", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/10", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/11", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/12", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/13", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/14", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/15", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/3/16", "f", nil, 'multitoggle')
+
+osc_server_method("/2/multitoggle/4/1", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/2", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/3", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/4", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/5", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/6", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/7", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/8", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/9", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/10", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/11", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/12", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/13", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/14", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/15", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/4/16", "f", nil, 'multitoggle')
+
+osc_server_method("/2/multitoggle/5/1", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/2", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/3", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/4", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/5", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/6", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/7", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/8", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/9", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/10", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/11", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/12", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/13", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/14", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/15", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/5/16", "f", nil, 'multitoggle')
+
+osc_server_method("/2/multitoggle/6/1", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/2", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/3", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/4", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/5", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/6", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/7", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/8", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/9", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/10", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/11", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/12", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/13", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/14", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/15", "f", nil, 'multitoggle')
+osc_server_method("/2/multitoggle/6/16", "f", nil, 'multitoggle')
+
+osc_server_method("/2/multifader/1", "f", nil, 'multifader')
+osc_server_method("/2/multifader/2", "f", nil, 'multifader')
+osc_server_method("/2/multifader/3", "f", nil, 'multifader')
+osc_server_method("/2/multifader/4", "f", nil, 'multifader')
+osc_server_method("/2/multifader/5", "f", nil, 'multifader')
+osc_server_method("/2/multifader/6", "f", nil, 'multifader')
+osc_server_method("/2/multifader/7", "f", nil, 'multifader')
+osc_server_method("/2/multifader/8", "f", nil, 'multifader')
+osc_server_method("/2/multifader/9", "f", nil, 'multifader')
+osc_server_method("/2/multifader/10", "f", nil, 'multifader')
+osc_server_method("/2/multifader/11", "f", nil, 'multifader')
+osc_server_method("/2/multifader/12", "f", nil, 'multifader')
+osc_server_method("/2/multifader/13", "f", nil, 'multifader')
+osc_server_method("/2/multifader/14", "f", nil, 'multifader')
+osc_server_method("/2/multifader/15", "f", nil, 'multifader')
+osc_server_method("/2/multifader/16", "f", nil, 'multifader')
+
+
+// for interface 1
+
+def kick(path, val)
+    if val == 1
+        drumNoteKick_hit()
+def snare(path, val)
+    if val == 1
+        drumNoteSnare_hit()
+def hh(path, val)
+    if val == 1
+        drumNoteHh_hit()
+def tom1(path, val)
+    if val == 1
+        drumNoteTom1_hit()
+def tom2(path, val)
+    if val == 1
+        drumNoteTom2_hit()
+def tom3(path, val)
+    if val == 1
+        drumNoteTom3_hit()
+def crash1(path, val)
+    if val == 1
+        drumNoteCrash1_hit()
+def crash2(path, val)
+    if val == 1
+        drumNoteCrash2_hit()
+def crash3(path, val)
+    if val == 1
+        drumNoteCrash3_hit()
+def volume(path, val)
+    interface1volume.set_value(int(val * 127))
+def mute(path, val)
+    if val == 1
+        temp_volume = interface1volume.value()
+        interface1volume.set_value(0)
+    else
+        interface1volume.set_value(temp_volume)
+def tempo(path, val)
+    interface1Tempo.set_value(int(val * 140) + 40)
+def click(path, val)
+    if val == 1
+        interface1Click.set_value(true)
+    else 
+        interface1Click.set_value(nil)
+
+// for interface 2
+
+// this is a utility function to unzip the paths of drum pattern via osc
+// If path is "/2/multitoggle/6/11", unzip(path) will return [11, 6]
+def unzip(string)
+    var first
+    var second
+    var tmp
+    if len(string) == 18
+        tmp = subseq(string, 15)
+        second = int(tmp[0])
+        first = int(tmp[2])
+    elif len(string) == 19
+        tmp = subseq(string, 15)
+        second = int(tmp)
+        tmp = subseq(tmp, 2)
+        first = int(tmp)
+    return [first, second]
+
+def multitoggle(path, val)
+    var address = unzip(path)
+    if val == 1
+        //for some reason, the first square on touch osc has path: "/2/multitoggle/6/1"
+        //but in the wxserpent interface the first square should be "/2/multitoggle/1/1"
+        // that's the reason 5 - (address[1] - 1)
+        currentScore[address[0] - 1][5 - (address[1] - 1)] = 1
+    else
+        currentScore[address[0] - 1][5 - (address[1] - 1)] = 0
+def multifader(path, val)
+    var temp = subseq(path, 14)
+    temp = int(temp)
+    fader[temp - 1] = val
+
+def randomm(path, val)
+	if val == 1
+	    for i = 0 to 16
+	        for j = 0 to 6
+	            if random() * 10 > 8
+	                currentScore[i][j] = 1 
+	            else 
+	                currentScore[i][j] = 0
+	    sendFaderRandom()
+def clear(path, val)
+    if val == 1
+        currentScore = createBlankScore()
+def load(path, val)
+	if val == 1 
+	    for i = 0 to 16
+	        fader[i] = 0.7
+	    sendFader(0.7)
+	    currentScore =  builtinScore
+
+
+
+

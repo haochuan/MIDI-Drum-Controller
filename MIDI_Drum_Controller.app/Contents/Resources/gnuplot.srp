@@ -1,0 +1,90 @@
+# gnuplot.srp -- an interface to gnuplot
+
+# p = Gnuplot(filename) -- open a plot
+#   keyword parameters are:
+#     driver (output format, e.g. "png", defaults to display on Mac)
+#     output (filename for output)
+#     xlabel (label for x axis)
+#     ylabel (label for y axis)
+#     xrange (min/max x axis values, a 2-element array [min, max]
+#             default is nil which means use gnuplot's default range)
+#     yrange (min/max y axis values, a 2-element array [min, max]
+#             default is nil which means use gnuplot's default range)
+#     title (title to print above the plot)
+# p.newcurve() -- begin a curve
+#   optional parameter is:
+#     title (default is none, can be a string to label the curve)
+#   keyword parameters are:
+#     style (default is "lines", can also be "points" or "linespoints")
+#     color (type "show colornames" to gnuplot for a list of options)
+# p.point(x, y) -- plot a point
+# p.endcurve() -- end a curve
+# p.endplot() -- end and close file
+
+class Gnuplot:
+    var outf // filename
+    var curve
+    var data
+    var driver # set term <driver>
+    var output
+    var xlabel, ylabel, title
+    var command
+    var sep
+
+    def init(filename, keyword driver = "aqua", output, xlabel, ylabel, title,
+             xrange, yrange)
+        outf = open(filename, "w")
+        data = []
+        command = "plot"
+        sep = ""
+        this.driver = driver
+        this.output = output
+        this.xlabel = xlabel
+        this.ylabel = ylabel
+        this.title = title
+
+        if xrange
+            command = command + " [" + str(xrange[0]) + ":" +
+                                str(xrange[1]) + "]"
+        if yrange
+            if not xrange
+                command = command + " []"
+            command = command + " [" + str(yrange[0]) + ":" +
+                                str(yrange[1]) + "]"
+        
+
+    def newcurve(optional title = "", keyword color = nil, style = "lines")
+        curve = []
+        data.append(curve)
+        command = command + sep + " '-' w " + style +
+                  " title \"" + title + "\""
+        if color
+            command = command + " lc rgbcolor \"" + color + "\""
+        sep = ","
+
+    def point(x, y)
+        curve.append([x, y])
+
+    def endcurve()
+        nil        
+
+    def endplot()
+        var save_stdout = stdout
+        stdout = outf
+        print "set term", driver
+        if output
+            print "set output", repr(output)
+        if xlabel
+            print "set xlabel", repr(xlabel)
+        if output
+            print "set ylabel", repr(ylabel)
+        if title
+            print "set title", repr(title)
+        print command
+        for curve in data
+            for pair in curve
+                print pair[0], pair[1]
+            print "e"
+        stdout = save_stdout
+        outf.close()
+

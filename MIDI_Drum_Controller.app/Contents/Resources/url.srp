@@ -1,0 +1,81 @@
+# url.srp -- simple URL parsing
+#
+# Roger B. Dannenberg
+# Jan 2014
+
+# use Url(url) to parse a url into protocol, host, port, address
+#
+class Url:
+    var protocol
+    var host
+    var port
+    var address
+
+    def init(url):
+        protocol = "http"
+        host = ""
+        port = ""
+        address = ""
+        # syntax [protocol:][//]host[:port][/[address]]
+        // there is a protocol if a colon is found before a slash or period
+        var colon_pos = find(url, ":")
+        var slash_pos = find(url, "/")
+        var period_pos = find(url, ".")
+        if slash_pos == -1: // not found
+            slash_pos = len(url)
+        if period_pos == -1: // not found
+            period_pos = len(url)
+        var after = min(slash_pos, period_pos)
+        if colon_pos >= 0 and colon_pos < after:
+            protocol = subseq(url, 0, colon_pos)
+            url = subseq(url, colon_pos + 1) // remove protocol if any
+        // remove up to 2 slashes if any
+        for i = 0 to 2:
+            if len(url) > 0 and url[0] == "/":
+                url = subseq(url, 1)
+        // get the host, terminated by colon, slash, or end
+        colon_pos = find(url, ":")
+        if colon_pos == -1:
+            colon_pos = len(url)
+        slash_pos = find(url, "/")
+        if slash_pos == -1: // not found
+            slash_pos = len(url)
+        after = min(colon_pos, slash_pos)
+        // get port if host ended in colon
+        if after == colon_pos and colon_pos < len(url) and url[colon_pos] == ":"
+            port = subseq(url, colon_pos + 1, slash_pos)
+        host = subseq(url, 0, after)
+        address = subseq(url, slash_pos) // initial slash is part of address
+        
+url_hex = "0123456789abcdef"
+
+def url_encode(s):
+    var enc = array(len(s))
+    // translate every character, then flatten
+    for c at i in s:
+        if find("=&%+ \t\n\r\"'/", c) >= 0:
+            if c == " ":
+                enc[i] = "+"
+            else:
+                n = ord(c)
+                enc[i] = "%" + url_hex[idiv(n, 16)] + url_hex[n % 16]
+        else:
+            enc[i] = c
+    return flatten(enc)
+
+def url_decode(s):
+    var enc = array(len(s))
+    // translate characters, then flatten
+    var i = 0
+    var j = 0
+    while i < len(s):
+        if s[i] == "%" and i < len(s) - 2:
+            var n = find(url_hex, s[i + 1]) * 16 + find(url_hex, s[i + 2])
+            i = i + 2
+            enc[j] = chr(max(0, min(127, n))) // force to ascii range
+        else:
+            enc[j] = s[i]
+        i = i + 1
+        j = j + 1
+    enc.set_len(j)
+    return flatten(enc)
