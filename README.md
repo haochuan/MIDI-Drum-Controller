@@ -1,6 +1,6 @@
 MIDI-Drum-Controller
 ====================
-This is a MIDI Drum Controller written in [Serpent](https://www.google.com) which can accept control messages via the [Open Sound Control (OSC) protocol](http://en.wikipedia.org/wiki/Open_Sound_Control).
+This is a MIDI Drum Controller written in [Serpent](http://sourceforge.net/projects/serpent/) which can accept control messages via the [Open Sound Control (OSC) protocol](http://en.wikipedia.org/wiki/Open_Sound_Control).
 
 ##Set Up
 
