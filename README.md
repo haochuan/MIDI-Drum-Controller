@@ -1,8 +1,8 @@
 MIDI-Drum-Controller
 ====================
-This is a MIDI Drum Controller written in Serpent which can accept control messages via the Open Sound Control (OSC) protocol.
+This is a MIDI Drum Controller written in [Serpent](https://www.google.com) which can accept control messages via the [Open Sound Control (OSC) protocol](http://en.wikipedia.org/wiki/Open_Sound_Control).
 
-1. Set Up
+##Set Up
 
 a. Open TouchOSC on your Device (I use in IOS). 
 
@@ -18,7 +18,7 @@ There should be 4 windows of ‘Beatmachine’ layout in your TouchOSC, at very 
 
 e. Then you can open init.srp with wxserpent.
 
-2.  Drum Pad Window
+##Drum Pad Window
 
 You can get most information about the function of each button/key/slider through the ‘Drum Pad’ window of wxserpent.
 
@@ -42,7 +42,7 @@ Load: Load a pre-defined drum loop in ‘Drum Pattern’ window.
 While the drum loop is playing, you can also hit the drum pad to get drum sound, which has no relationship with the sound in the drum loop.
 ******Note End*******
 
-3. Drum Pattern Window
+##Drum Pattern Window
 
 Here you can draw your own drum loop and play. There are sixteen-note long loop you can draw, and each line from top to bottom represents Crash, Tom 2, Tom 1, Hi-Hat, Snare and Kick.
 
